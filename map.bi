@@ -82,6 +82,7 @@ type levelInfo
     numLevel as integer
     wallColor as uinteger
     levelMap(1 to mapWidth, 1 to mapHeight) as mapInfoType
+    levelInv(1 to mapWidth, 1 to mapHeight) as inventoryType    'Map inventory type
 end type
 
 'Object for the level data. Most of the code in this object is private since
@@ -101,6 +102,7 @@ type levelObject
     declare sub _addDoorsToRoom(i as integer)
     declare sub _addDoors()
     declare sub _drawMapToArray()
+    declare sub _generateItems()
     
     declare function _blockingTile(tileX as integer, tileY as integer) as integer
     declare function _lineOfSight(x1 as integer, y1 as integer, x2 as integer, y2 as integer) as integer
@@ -128,6 +130,7 @@ type levelObject
     declare function isDoorLocked(x as integer, y as integer) as integer
     declare function getTileID(x as integer, y as integer) as terrainIDs
     declare function getTerrainDescription(x as integer, y as integer) as string
+    declare function getItemDescription(x as integer, y as integer) as string
     declare function hasItem(x as integer, y as integer) as integer
     declare function getLevelDescription() as string
 end type
@@ -695,6 +698,23 @@ function levelObject._getTerrainInfo(x as integer, y as integer) as string
     return ret
 end function  
 
+'Generate items for the map.
+sub levelObject._generateItems()
+    dim as integer i, x, y
+    
+    'Generate some items for the level.
+    for i = 1 to 10
+        do
+            'Get a spot in the dungeon.
+            x = randomRange(2, mapWidth - 1)
+            y = randomRange(2, mapHeight - 1)
+        'Look for a floor tile that doesn't already have an item.
+        loop until (_level.levelMap(x,y).terrainID = tFloor) and (hasItem(x,y) = false)
+        generateItem _level.levelInv(x,y), _level.numLevel
+    next
+end sub
+
+
 'Draws the map on the screen.
 sub levelObject.drawMap()
     dim as integer i, j, w = viewWidth, h = viewHeight, x, y, playerX, playerY, healthPercent
@@ -726,8 +746,11 @@ sub levelObject.drawMap()
             'Print the tile.
             if _level.levelMap(i + x, j + y).visible = true then
                 'Print the item marker.
-                if _level.levelMap(i + x, j + y).hasItem = true then
-                    'Item info here.
+                if hasItem(i + x, j + y) = true then
+                    'Get the item glyph.
+                    mTile = _level.levelInv(i + x, j + y).glyph
+                    'Get the item color.
+                    tileColor = _level.levelInv(i + x, j + y).glyphColor
                 endif
                 placeGlyph mTile, x + 1, y + 1, tileColor
                 
@@ -736,9 +759,9 @@ sub levelObject.drawMap()
                     'Put monster info here.
                 endif
             else
-                'Not in line of sight?
+                'Not in line of sight? Don't print monsters when not in LOS.
                 if _level.levelMap(i + x, j + y).seen = true then
-                    if _level.levelMap(i + x, j + y).hasItem = true then
+                    if hasItem(i + x, j + y) = true then
                         placeGlyph "?", x + 1, y + 1, cSlateGrayDark
                     else
                         placeGlyph mTile, x + 1, y + 1, cSlateGrayDark
@@ -783,14 +806,15 @@ sub levelObject.generateDungeonLevel()
             _level.levelMap(x,y).visible = false
             _level.levelMap(x,y).seen = false
             _level.levelMap(x,y).hasMonster = false
-            _level.levelMap(x,y).hasItem = false
             _level.levelMap(x,y).doorInfo.locked = false
             _level.levelMap(x,y).doorInfo.lockDifficulty = 0
             _level.levelMap(x,y).doorInfo.doorStrength = 0
+            clearInventory _level.levelInv(x,y)
         next
     next
     _initializeGrid
     _drawMapToArray
+    _generateItems
 end sub
 
 'This function returns true if the tile at x,y is blocking.
@@ -810,8 +834,23 @@ function levelObject.getTerrainDescription(x as integer, y as integer) as string
     return _getTerrainInfo(x,y)
 end function
 
+function levelObject.getItemDescription(x as integer, y as integer) as string
+    dim as string ret = "None"
+    
+    if _level.levelInv(x,y).classID <> iNone then
+        ret = getInvItemDesc(_level.levelInv(x,y))
+    endif
+    
+    return ret
+end function
+
 function levelObject.hasItem(x as integer, y as integer) as integer
-    return _level.levelMap(x,y).hasItem
+    'Look at inventory slot. If no class ID, then the slot is empty.
+    if _level.levelInv(x,y).classID = iNone then
+        return false
+    else
+        return true
+    endif
 end function
 
 'This function returns the level environment by looking at the current level's

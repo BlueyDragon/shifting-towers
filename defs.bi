@@ -18,6 +18,9 @@
 #Define textColumns 80
 #define textRows 60
 
+'Maximum levels in the game
+#define maxLevel 50
+
 'Finds center point on the screen.
 #define centerX(textToCenter) ((textColumns / 2) - (Len(textToCenter) / 2))
 #define centerY(numberOfItems) ((textColumns / 2) - (numberOfItems / 2))
@@ -32,24 +35,27 @@ const version = 0.01
 const title = "F O R C A S T I A  T A L E S:  T H E  S H I F T I N G  T O W E R S"
 
 'Colors
+const cBlack = rgb(0,0,0)
+Const cBlue = RGB(0,0,255)
+const cCrimson = rgb(220,20,60)
+const cCyan = rgb(0,255,255)
+const cGold = rgb(255,215,0)
+Const cGray = RGB(128,128,128)
+const cHoneydew = rgb(240,255,240)
 const cYellow = rgb(200,200,0)
 Const cYellowBright = rgb(255,255,0)
 Const cWhite = RGB(255,255,255)
 Const cWhite1 = RGB(200,200,200)
 Const cWhite2 = RGB(150,150,150)
 Const cWhite3 = RGB(100,100,100)
-Const cBlack = RGB(0,0,0)
-Const cGray = RGB(128,128,128)
 Const cTan = RGB(210,180,140)
 Const cSlateGrayDark = RGB(47,79,79)
 const cSienna = RGB(160,082,045)
-Const cBlue = RGB(0,0,255)
-Const cCyan = RGB(0,255,255)
 Const cGreen = RGB(0,255,0)
 Const cRed = RGB(255,0,0)
 Const cPink = RGB(255,0,255)
 Const cPurple = RGB(150,0,150)
-const cCrimson = rgb(220,20,60)
+const cSalmon = rgb(250,128,114)
 
 'Color Bounds, used for random leather color generation
 const lowerLimitBlue = 30

@@ -10,6 +10,7 @@
 #include "utils.bi"
 #include "mainmenu.bi"
 #include "character.bi"
+#include "inventory.bi"
 #include "intro.bi"
 #include "map.bi"
 #include "vector.bi"
@@ -179,7 +180,8 @@ sub drawMainScreen()
     
     'Check to see if the character is standing on an item.
     if level.hasItem(player.locX, player.locY) = true then
-        'Get item description.
+        txt = level.getItemDescription(player.locX, player.locY)
+        printMessage txt
     else
         'See if character is on a special tile.
         terr = level.getTileID(player.locX, player.locY)
