@@ -3,7 +3,7 @@
 * This file contains declarations and functions for generating and maintaining
 * a character.
 * by Stephen Gatten
-* Last update: July 2, 2014
+* Last update: September 1, 2014
 *****************************************************************************'/
 
 'Character attribute type definition.
@@ -27,9 +27,15 @@ type characterInfo
     totXP as integer 'Total spirit rating
     currGold as integer 'Current gold amount
     totGold as integer 'Lifetime gold amount
-    locX as integer 'Current X position on the map
-    locY as integer 'Current Y position on the map
+    location as mapCoordinate       'Character's current X and Y location.
+    backpack(97 to 122) as inventoryType
 end type
+
+'The backpack variable is the character inventory. The odd subscript ranges are
+'the ASCII codes for the characters a through z. The character will have
+'twenty-six inventory slots in addition to the items currently equipped. This
+'way, we can take the ASCII code of the player's selection and translate it to
+'a subscript of the inventory array.
 
 'Character object.
 type character
@@ -66,15 +72,32 @@ type character
     declare property aura(newAura as integer)   'Sets current aura.
     declare property aura() as integer          'Returns current aura.
     declare property maxAP() as integer         'Returns maximum aura.
+    
+    declare property currGold() as integer
+    declare property currGold(newGold as integer)
+    declare property totGold() as integer
+    declare property totGold(newGold as integer)
+    declare property currXP() as integer
+    declare property currXP(newXP as integer)
+    declare property totXP() as integer
+    declare property totXP(newXP as integer)
+    
     declare property locX(newX as integer)      'Sets X coordinate.
     declare property locX() as integer          'Returns X coordinate.
     declare property locY(newY as integer)      'Sets Y coordinate.
     declare property locY() as integer          'Returns Y coordinate.
-    
-    declare sub printStats ()
+    declare property lowInv() as integer
+    declare property highInv() as integer
     
     declare function generateCharacter() as integer
     declare function moveCharacter() as integer
+    declare function getFreeInventoryIndex() as integer
+    declare function hasInventoryItem(index as integer) as integer
+    
+    declare sub addInventoryItem(index as integer, inv as inventoryType)
+    declare sub getInventoryItem(index as integer, inv as inventoryType)
+    declare sub printStats ()
+    
 end type
 
 'Returns the character name.
@@ -186,33 +209,112 @@ property character.maxAP() as integer
     return _cInfo.maxAP
 end property
 
+property character.currGold(newGold as integer)
+    _cInfo.currGold = newGold
+end property
+
+property character.currGold() as integer
+    return _cInfo.currGold
+end property
+
+property character.totGold(newGold as integer)
+    _cInfo.totGold = newGold
+end property
+
+property character.totGold() as integer
+    return _cInfo.totGold
+end property
+
+property character.currXP(newXP as integer)
+    _cInfo.currXP = newXP
+end property
+
+property character.currXP() as integer
+    return _cInfo.currXP
+end property
+
+property character.totXP(newXP as integer)
+    _cInfo.totXP = newXP
+end property
+
+property character.totXP() as integer
+    return _cInfo.totXP
+end property
+
 property character.locX(newX as integer)
-    _cInfo.locX = newX
+    _cInfo.location.x = newX
 end property
 
 property character.locX() as integer
-    return _cInfo.locX
+    return _cInfo.location.x
 end property
 
 property character.locY(newY as integer)
-    _cInfo.locY = newY
+    '_cInfo.locY = newY
+    _cInfo.location.y = newY
 end property
 
 property character.locY() as integer
-    return _cInfo.locY
+    'return _cInfo.locY
+    return _cInfo.location.y
 end property
+
+'Returns the low index of inv array.
+Property character.lowInv() As Integer
+   Return LBound(_cInfo.backpack)
+End Property
+
+'Returns the high index of inv array.
+Property character.highInv() As Integer
+   Return UBound(_cInfo.backpack)
+End Property
+
+'Returns a free inventory slot index, or -1 if none exist.
+function character.getFreeInventoryIndex() as integer
+    dim as integer ret = -1
+    
+    'Look for an empty inventory slot.
+    for i as integer = lbound(_cInfo.backpack) to ubound(_cInfo.backpack)
+        'Examine class ID.
+        if _cInfo.backpack(i).classID = iNone then
+            'Empty slot.
+            ret = i
+            exit for
+        endif
+    next
+        
+    return ret
+end function
+
+'Returns true if an item exists in the given inventory slot.
+function character.hasInventoryItem(index as integer) as integer
+    'Validate the index.
+    if index >= lbound(_cInfo.backpack) and index <= ubound(_cInfo.backpack) then
+        'Check the class ID.
+        if _cInfo.backpack(index).classID = iNone then
+            return false
+        else
+            return true
+        endif
+    else
+        return false
+    endif
+end function
 
 'Generates a new character.
 function character.generateCharacter() as integer
     dim as string enteredName, prompt, sKey
     dim as integer done = false, ret = true, tx, ty
+    dim as tWidgets.btnID btn
+    dim as tWidgets.tInputbox ib
     
     'Set up user input prompt.
     prompt = "Press R to reroll stats, <ENTER> to accept, or <ESC> to exit to menu."
     tx = (CenterX(prompt)) * characterWidth
     ty = (textRows - 6) * characterHeight
     
-    'Get the name of the character.
+    /'Get the name of the character, using simple input. This loop is obsolete,
+    'as the program now uses tWidgets.
     do
         cls
         'Using simple input here.
@@ -239,32 +341,54 @@ function character.generateCharacter() as integer
     loop until done = true
     
     done = false
-    'Generate character attributes.
+    '/
     
-    do
-        with _cInfo
-            .cName = enteredName
-            .fe(0) = randomRange(1,20)
-            .en(0) = randomRange(1,20)
-            .ra(0) = randomRange(1,20)
-            .ag(0) = randomRange(1,20)
-            .iq(0) = randomRange(1,20)
-            .cond = randomRange(4,18) + (.en(0) / 4)
-            .hits = .cond
-            .aura = randomRange(4,18) + (.ra(0) / 4)
-            .maxAP = .aura
-            .mAtk(0) = .fe(0) + .en(0)
-            .rAtk(0) = .fe(0) + .ag(0)
-            .sAtk(0) = .ra(0) + .iq(0)
-            .pDef(0) = .en(0) + .ag(0)
-            .sDef(0) = .ag(0) + .iq(0)
-            .currXP = 0
-            .totXP = 0
-            .currGold = 0
-            .totGold = 0
-            .locX = 0
-            .locY = 0
-        end with
+    'Draw the background
+    screenlock
+    drawBackground bgShield()
+    screenunlock
+    
+    ib.title = "Character Name"
+    ib.prompt = "Enter your character's name:"
+    ib.maxLen = 30
+    ib.inputLen = 30
+    
+    'Get the name of the character.
+    btn = ib.inputbox(enteredName)
+    if btn = tWidgets.btnID.gbnCancel then
+        ret = false
+    endif
+    if btn = tWidgets.btnID.gbnOK then
+        ret = true
+    endif
+    
+    'Display character.
+    if ret = true then
+        'Generate the character data.
+        do
+            with _cInfo
+                .cName = enteredName
+                .fe(0) = randomRange(1,20)
+                .en(0) = randomRange(1,20)
+                .ra(0) = randomRange(1,20)
+                .ag(0) = randomRange(1,20)
+                .iq(0) = randomRange(1,20)
+                .cond = randomRange(4,18) + (.en(0) / 4)
+                .hits = .cond
+                .aura = randomRange(4,18) + (.ra(0) / 4)
+                .maxAP = .aura
+                .mAtk(0) = .fe(0) + .en(0)
+                .rAtk(0) = .fe(0) + .ag(0)
+                .sAtk(0) = .ra(0) + .iq(0)
+                .pDef(0) = .en(0) + .ag(0)
+                .sDef(0) = .ag(0) + .iq(0)
+                .currXP = 0
+                .totXP = 0
+                .currGold = 0
+                .totGold = 0
+                .location.x = 0
+                .location.y = 0
+            end with
         
         'Print out the current character stats.
         printStats
@@ -288,8 +412,34 @@ function character.generateCharacter() as integer
             sleep 10
         loop until (sKey = "r") or (sKey = kEsc) or (sKey = kEnter)
     loop until done = true
+    endif
+    
     return ret
 end function
+
+'Adds inventory item to character inventory slot.
+sub character.addInventoryItem(index as integer, inv as inventoryType)
+    'Validate the index.
+    if index >= lbound(_cInfo.backpack) and index <= ubound(_cInfo.backpack) then
+        'Clear the inventory slot.
+        clearInventory _cInfo.backpack(index)
+        
+        'Set the item into the inventory slot.
+        _cInfo.backpack(index) = inv
+    endif
+end sub
+
+'Gets an item from an inventory slot.
+sub character.getInventoryItem(index as integer, inv as inventoryType)
+    'Clear the inventory item.
+    clearInventory inv
+    
+    'Validate the index.
+    if index >= lbound(_cInfo.backpack) and index <= ubound(_cInfo.backpack) then
+        inv = _cInfo.backpack(index)
+    endif
+end sub
+
 
 'Prints out the current stats for the character.
 sub character.printStats()
@@ -298,7 +448,7 @@ sub character.printStats()
     
     screenLock
     'Draw the background.
-    drawBackground bgTitle()
+    drawBackground bgShield()
     
     'Draw the title.
     sInfo = Trim(_cInfo.cName) & " Attributes and Skills"
@@ -333,7 +483,7 @@ sub character.printStats()
     drawShadowedText tx, ty, sInfo
     
     row += 2 : ty = row * characterHeight
-    sInfo = "Aura:      " & _cInfo.hits
+    sInfo = "Aura:      " & _cInfo.aura
     drawShadowedText tx, ty, sInfo
     
     'Draw the attributes on the left side, at X 70

@@ -123,7 +123,8 @@ type levelObject
     declare property levelWallColor() as uinteger
     
     declare sub drawMap()
-    declare sub setTile(x as integer, y as integer, newTileID as terrainIDs) 
+    declare sub setTile(x as integer, y as integer, newTileID as terrainIDs)
+    declare sub getItemFromMap(x as integer, y as integer, inv as inventoryType)
     declare sub generateDungeonLevel()
     
     declare function isBlocking(x as integer, y as integer) as integer
@@ -131,6 +132,7 @@ type levelObject
     declare function getTileID(x as integer, y as integer) as terrainIDs
     declare function getTerrainDescription(x as integer, y as integer) as string
     declare function getItemDescription(x as integer, y as integer) as string
+    declare function getInventoryClassID(x as integer, y as integer) as classIDs
     declare function hasItem(x as integer, y as integer) as integer
     declare function getLevelDescription() as string
 end type
@@ -794,6 +796,16 @@ sub levelObject.setTile(x as integer, y as integer, newTileID as terrainIDs)
     _level.levelMap(x,y).terrainID = newTileID
 end sub
 
+'Adds an item from the map to the given inventory type.
+sub levelObject.GetItemFromMap(x As Integer, y As Integer, inv As inventoryType)
+   if inv.classID <> iNone then
+      clearInventory inv
+   endif
+   
+   inv = _level.levelInv(x, y)
+   clearInventory _level.levelInv(x, y)
+end sub
+
 'Generate a new dungeon level.
 sub levelObject.generateDungeonLevel()
     dim as integer x, y
@@ -842,6 +854,11 @@ function levelObject.getItemDescription(x as integer, y as integer) as string
     endif
     
     return ret
+end function
+
+'Returns the class ID for the inventory item at x, y.
+function levelObject.getInventoryClassID(x As Integer, y As Integer) As classIDs
+   return _level.levelInv(x, y).classID
 end function
 
 function levelObject.hasItem(x as integer, y as integer) as integer

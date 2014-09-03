@@ -79,6 +79,45 @@ sub drawGlowText(x as integer, y as integer, text as string, clr as uinteger = c
     draw string (x,y), text, clr
 end sub
 
+'This subroutine places an empty black block at a specified row and column.
+sub placeSpace(column as integer, row as integer)
+    dim as integer x, y
+    
+    x = (column - 1) * characterWidth
+    y = (row - 1) * characterHeight
+    draw string (x,y), gBlock, cBlack
+end sub
+
+'This subroutine places text at a specified row and column.
+sub placeGlyph(text as string, column as integer, row as integer, clr as uinteger = cWhite)
+    dim as integer x, y
+    
+    x = (column - 1) * characterWidth
+    y = (row - 1) * characterHeight
+    draw string (x,y), text, clr
+end sub
+
+'This subroutine places text at a specified row and column, with a drop shadow.
+sub placeGlyphShadow(text as string, column as integer, row as integer, clr as uinteger = cWhite)
+    dim as integer x, y
+    
+    x = (column - 1) * characterWidth
+    y = (row - 1) * characterHeight
+    draw string (x + 1, y + 1), text, cBlack
+    draw string (x, y), text, clr
+end sub
+
+'Returns fast distance calculation between two points.
+Function calculateDistance(x1 As Integer, x2 As Integer, y1 As Integer, y2 As Integer) As Integer
+    Dim As Integer xdiff, ydiff
+    Dim As Integer dist
+   
+    xdiff = abs(x1 - x2)
+    ydiff = abs(y1 - y2)
+    dist = (xdiff + ydiff + imax(xdiff, ydiff)) Shr 1
+    return dist
+End Function
+
 'Splits text InS at sLen and returns clipped string.
 Function wordWrap(InS As String, sLen As Integer) As String
     Dim As Integer i = sLen, sl
@@ -120,33 +159,4 @@ Function wordWrap(InS As String, sLen As Integer) As String
         End If 
     End If
     Return sret
-End Function
-
-'This subroutine places an empty black block at a specified row and column.
-sub placeSpace(column as integer, row as integer)
-    dim as integer x, y
-    
-    x = (column - 1) * characterWidth
-    y = (row - 1) * characterHeight
-    draw string (x,y), gBlock, cBlack
-end sub
-
-'This subroutine places text at a specified row and column.
-sub placeGlyph(text as string, column as integer, row as integer, clr as uinteger = cWhite)
-    dim as integer x, y
-    
-    x = (column - 1) * characterWidth
-    y = (row - 1) * characterHeight
-    draw string (x,y), text, clr
-end sub
-
-'Returns fast distance calculation between two points.
-Function calculateDistance(x1 As Integer, x2 As Integer, y1 As Integer, y2 As Integer) As Integer
-    Dim As Integer xdiff, ydiff
-    Dim As Integer dist
-   
-    xdiff = abs(x1 - x2)
-    ydiff = abs(y1 - y2)
-    dist = (xdiff + ydiff + imax(xdiff, ydiff)) Shr 1
-    return dist
 End Function

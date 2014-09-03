@@ -40,7 +40,7 @@ function mainMenu() as mMenuRet
     dim as mMenuRet idx = mNew
     dim menuItems(mNew to mQuit) as string
     dim as integer mx, my, done = false, tx, ty, cx, cy
-    dim as string mkey, mtitle, copyrightText
+    dim as string mkey, mtitle, mVersion, copyrightText
     
     copyrightText = "(c) 2014 Studio (D)raconis"
     cx = centerX(copyrightText)
@@ -61,10 +61,13 @@ function mainMenu() as mMenuRet
     drawBackground bgTitle()
     
     'Draw the title with a drop shadow.
-    mtitle = "Forcastia Tales " & version
+    mTitle = "Forcastia Tales: the Shifting Towers"
+    mVersion = "version " & version
     tx = centerX(mtitle) * characterWidth
     ty = (10 * characterHeight)
     drawShadowedText tx, ty, mtitle, cYellowBright
+    tx = centerX(mVersion) * characterWidth
+    drawShadowedText tx, ty + (characterHeight * 2), mVersion, cYellowBright 
     
     'Draw the copyright notice
     drawShadowedText (cx * characterWidth), (cy * characterHeight), copyrightText, cYellowBright

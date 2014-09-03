@@ -2,21 +2,27 @@
 * dungeon.bas
 * Main program file for Dungeon of Doom
 * by Stephen Gatten
-* Last update: July 3, 2014
+* Last update: September 2, 2014
 *****************************************************************************'/
 
 #include "images/bg-title.bi"
+#include "images/bg-shield.bi"
+
+#include "fbgfx.bi"
+#include "tWidgets.bi"
+
 #include "defs.bi"
 #include "utils.bi"
 #include "mainmenu.bi"
-#include "character.bi"
 #include "inventory.bi"
+#include "character.bi"
 #include "intro.bi"
 #include "map.bi"
 #include "vector.bi"
 #include "commands.bi"
 
-'Displays the game title screen. This subroutine is obsolete, the game now loads straight into the main menu
+'Displays the game title screen. This subroutine is obsolete, the game now loads
+'straight into the main menu.
 Sub DisplayTitle
     Dim As String copyrightText
     Dim As Integer textX, textY
@@ -180,6 +186,7 @@ sub drawMainScreen()
     
     'Check to see if the character is standing on an item.
     if level.hasItem(player.locX, player.locY) = true then
+        'txt = "There is a " & level.getItemDescription(player.locX, player.locY) & " here."
         txt = level.getItemDescription(player.locX, player.locY)
         printMessage txt
     else
@@ -202,10 +209,276 @@ sub drawMainScreen()
     'endif
 end sub
 
+'Draws the player inventory.
+sub drawInventoryScreen()
+    dim as integer col, row, iItem, ret, sRow, ssRow, count, i
+    dim as string text, text2, desc
+    dim as inventoryType inv
+    dim as uInteger clr
+    
+    screenLock
+    'Set the background for the inventory screen.
+    drawBackground bgShield()
+        
+    'Add the title.
+    text = "Current Inventory for " & trim(player.charName)
+    col = centerX(text)
+    row = 1
+    
+    'Draw the title with a drop shadow.
+    placeGlyphShadow text, col, row, cYellowBright
+    
+    'Add the current held equipment.
+    col = 2
+    row += 3
+    text = "1 Primary: "
+    placeGlyphShadow text, col, row, cWhite
+    
+    col = textColumns / 2
+    text = "4 Neck: "
+    placeGlyphShadow text, col, row, cWhite
+    
+    col = 2
+    row += 2
+    text = "2 Secondary: "
+    placeGlyphShadow text, col, row, cWhite
+    
+    col = textColumns / 2
+    text = "5 Ring Right: "
+    placeGlyphShadow text, col, row, cWhite
+    
+    col = 2
+    row += 2
+    text = "3 Armor: "
+    placeGlyphShadow text, col, row, cWhite
+    
+    col = textColumns / 2
+    text = "6 Ring Left: "
+    placeGlyphShadow text, col, row, cWhite
+    
+    'Draw the divider line.
+    row += 2
+    col = 1
+    text = string(80, chr(205))
+    mid(text, 2) = " Equipment  (*) = Unidentified "
+    text2 = " Gold: " & player.currGold & " "
+    mid(text, 80 - len(text2)) = text2
+    placeGlyphShadow text, col, row, cYellowBright
+    
+    row += 2
+    col = 2
+    sRow = row
+    
+    'Print out the inventory items.
+    for i = player.lowInv to player.highInv
+        'See if the character has an item in slot.
+        iItem = player.hasInventoryItem(i)
+        if iItem = true then
+            'Get the inventory item.
+            player.getInventoryItem i, inv
+            
+            'Has the item been identified?
+            ret = isIdentified(inv)
+            
+            'Get the description.
+            desc = getInventoryItemDescription(inv)
+            
+            'Get the color of the item.
+            clr = inv.glyphColor
+            
+            'Build the text string.
+            text = chr(i) & " " & desc & " "
+            
+            'If not examined, mark it as such.
+            if ret = false then
+                text &= "(*)"
+            endif
+        else
+            text = chr(i)
+            clr = cWhite
+        endif
+        
+        'Move column over when reached half of the list.
+        count += 1
+        if count = 14 then
+            col = textColumns / 2
+            'Save the end of the first column so we can draw a line.
+            ssRow = row
+            row = sRow
+        endif
+        
+        'Draw the text.
+        placeGlyphShadow text, col, row, clr
+        row += 2
+    next
+    
+    'Draw the divider line.
+    row = ssRow + 1
+    col = 1
+    text = string(80, chr(205))
+    mid(text, 2) = " Spells Learned "
+    placeGlyphShadow text, col, row, cYellowBright
+    
+    'Draw the spell slots.
+    col = 2
+    row += 2
+    count = 0
+    sRow = row
+    for i = 65 to 78
+        text = chr(i)
+        'Move column over when reached half of the list.
+        count += 1
+        if count = 8 then
+            col = textColumns / 2
+            'Save the end of the first column so we can draw line.
+            ssRow = row
+            row = sRow
+        endif
+        
+        'Draw the text.
+        placeGlyphShadow text, col, row, clr
+        row += 2
+    next
+    
+    'Draw the divider line.
+    row = ssRow + 1
+    col = 1
+    text = string(80, chr(205))
+    mid(text, 2) = " Commands "
+    placeGlyphShadow text, col, row, cYellowBright
+    
+    'Draw the command list
+    row += 2
+    text = "(D)rop - (I)dentify"
+    col = centerX(text)
+    placeGlyphShadow text, col, row, cWhite
+    screenunlock
+end sub
+
+'Print message to user using msgbox.
+Sub showMsg(newTitle As String, mess As String, mtype As tWidgets.MsgBoxType)
+   Dim As tWidgets.tMsgbox mb
+   Dim As tWidgets.btnID btn
+
+   mb.MessageStyle = mtype
+   mb.Title = newTitle
+   btn = mb.MessageBox(mess)
+end sub
+
+'Processes the IDENTIFY command.
+function processIdentify() as integer
+    dim as string res, mask, desc
+    dim as integer i, iRet, iItem, idDR, playerIQ, rollP, rollI, ret = false
+    dim as inventoryType inv
+    dim as tWidgets.btnID btn
+    dim as tWidgets.tInputBox ib
+    
+    'Make sure there is something to identify.
+    for i = player.lowInv to player.highInv
+        iItem = player.hasInventoryItem(i)
+        if iItem = true then
+            'Get the inventory item.
+            player.getInventoryItem i, inv
+            
+            'Is the item identified?
+            iRet = isIdentified(inv)
+            
+            'An item to identify.
+            if iRet = false then
+                'Build the mask.
+                mask &= chr(i)
+            endif
+        endif
+    next
+    
+    if len(mask) = 0 then
+        showMsg "Identify", "There are no unidentified items in the inventory.", tWidgets.MsgBoxType.gmbOK
+    else
+        'Draws an input box on the screen.
+        ib.Title = "Identify"
+        ib.Prompt = "Select item(s) to identify (" & mask & ")"
+        ib.Row = 39
+        ib.EditMask = mask
+        ib.MaxLen = len(mask)
+        ib.InputLen = len(mask)
+        btn = ib.Inputbox(res)
+        
+        'Identify each item in the list.
+        if(btn <> tWidgets.btnID.gbnCancel) and (len(res) > 0) then
+            'Identify the list of items.
+            for i = 1 to len(res)
+                'Get index into character inventory.
+                iItem = asc(res,i)
+                
+                'Get the inventory item.
+                player.getInventoryItem iItem, inv
+                
+                'Get the identify difficulty.
+                idDR = getIdentifyDifficulty(inv)
+                
+                'Use the intelligence attribute to calculate the identify attempt.
+                playerIQ = player.iq
+                
+                'Roll for the item's difficulty.
+                rollI = randomRange(0, idDR)
+                
+                'Roll for player.
+                rollP = randomRange(0, playerIQ)
+                
+                'Get the item description.
+                desc = getInventoryItemDescription(inv)
+                
+                'If the player rolls => identify roll, item is identified.
+                if rollP > rollI then
+                    desc &= " was successfully identified!"
+                    showMsg "Identify", desc, tWidgets.MsgBoxType.gmbOK
+                    setItemIdentified inv, true
+                    player.addInventoryItem iItem, inv
+                    ret = true
+                else
+                    desc &= " was not identified."
+                    showMsg "Identify", desc, tWidgets.MsgBoxType.gmbOK
+                endif
+            next
+        endif
+    endif
+    
+    return ret
+end function
+    
+'Manages the character's inventory.
+sub manageInventory()
+    dim as string kChar, iChar
+    dim as integer ret
+    
+    drawInventoryScreen
+    do
+        kChar = inKey
+        kChar = ucase(kChar)
+        
+        'Check to see if we have a key.
+        if kChar <> "" then
+            
+            '(I)dentify
+            if kChar = "I" then
+                ret = processIdentify()
+                'Screen changed.
+                if ret = true then
+                    drawInventoryScreen
+                endif
+            endif
+        endif
+        sleep 1
+    loop until kChar = kEsc
+    clearKeys
+end sub
+
 'Using 640x480 32 bit screen with 80x60 text.
 ScreenRes 640, 480, 32
 Width characterWidth, characterHeight
 WindowTitle "Forcastia Tales"
+randomize timer 'Seed the random number generator.
+tWidgets.initWidgets 'Initialize the text widgets.
 
 'shell("echo")
 
@@ -244,8 +517,8 @@ if mm <> mMenu.mQuit then
     level.LevelID = 1
     level.generateDungeonLevel
     'Main screen turn on
-    'drawSolidBackground(cPurple)
-    generateLeatherBackground()
+    drawSolidBackground(cPurple)
+    'generateLeatherBackground()
     drawMainScreen
     do
         cKey = inkey
@@ -300,6 +573,62 @@ if mm <> mMenu.mQuit then
                 if mRet = true then drawMainScreen
             endif
             
+            '(G)et an item from the dungeon and add to inventory.
+            if cKey = "g" then
+                dim inv as inventoryType
+                
+                'Make sure the character is standing on an item.
+                if level.hasItem(player.locX, player.locY) = true then
+                    'Check for gold. This is a special case and will be added
+                    'to the character's gold total without touching the pack.
+                    dim iClass as classIDs = level.getInventoryClassID(player.locX, player.locY)
+                    if iClass = iGold then
+                        'Get the gold from the map.
+                        level.getItemFromMap player.locX, player.locY, inv
+                        
+                        'Add to gold total.
+                        player.currGold = player.currGold + inv.gold.amount
+                        player.totGold = player.totGold + inv.gold.amount
+                        
+                        'Add to experience total.
+                        player.currXP = player.currXP + inv.gold.amount
+                        player.totXP = player.totXP + inv.gold.amount
+                        
+                        'Message player.
+                        printMessage inv.gold.amount & " gold coins collected."
+                        drawMainScreen
+                    else
+                        'Look for a free inventory slot.
+                        dim as integer index = player.getFreeInventoryIndex
+                        
+                        'If a slot is found, load inventory item.
+                        if index <> -1 then
+                            level.getItemFromMap player.locX, player.locY, inv
+                            
+                            'Put it into character inventory.
+                            player.addInventoryItem index, inv
+                            printMessage "Item added to inventory."
+                            'printMessage player.charName & " picks up the item."
+                        else
+                            'No slots open.
+                            printMessage "There is no room in the pack for this item."
+                            'printMessage player.charName & "'s pack is full."
+                        endif
+                    endif
+                else
+                    printMessage "There is nothing here to pick up."
+                endif
+            endif
+            
+            '(I)nventory draws the inventory screen.
+            if cKey = "i" then
+                manageInventory
+                
+                'At this point, the background will need to be redrawn.
+                drawSolidBackground(cPurple)
+                drawMainScreen
+            endif
+                
             'Descend
             if cKey = ">" then
                 'Check to make sure player is actually on stairs down.

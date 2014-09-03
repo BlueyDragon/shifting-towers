@@ -62,8 +62,8 @@ end enum
 
 type supplyType
     id as supplyIDs         'This indicates what type of supply item is in the type.
-    evalDR as integer       'Evaluation difficulty. Used to evaluate magical effects. 0 = non magic.
-    eval as integer         'True if item has been evaluated.
+    idDR as integer         'Identify difficulty. Used to evaluate magical effects. 0 = non magic.
+    ided as integer         'True if item has been identified.
     effect as effectsIDs    'The type of magical effect.
     sDesc as string * 30    'Secret name/description for magical items, revealed when successfully evaluated.
     noise as integer        'The amount of noise the item generates.
@@ -100,8 +100,8 @@ Sub clearInventory(inv As inventoryType)
         'Clear the SUPPLY type.
         if inv.classID = iSupply then
             inv.supply.id = supplyNone
-            inv.supply.evalDR = 0
-            inv.supply.eval = false
+            inv.supply.idDR = 0
+            inv.supply.ided = false
             inv.supply.effect = effectNone
             inv.supply.sDesc = ""
             inv.supply.noise = 0
@@ -171,12 +171,12 @@ sub generateSupply(inv as inventoryType, currentLevel as integer)
         inv.supply.noise = 1
         inv.glyph = Chr(157)
         inv.glyphColor = cGreen
-        inv.supply.eval = false
+        inv.supply.ided = false
         inv.supply.use = useDrinkEat
         
         'Set the magic properties.
         if isMagic = true then
-            inv.supply.evalDR = randomRange(currentLevel, currentLevel * 2)
+            inv.supply.idDR = randomRange(currentLevel, currentLevel * 2)
             inv.supply.effect = effectMaxHeal
             inv.supply.sDesc = "Magic Herb"
         else
@@ -189,12 +189,12 @@ sub generateSupply(inv as inventoryType, currentLevel as integer)
         inv.supply.noise = 1
         inv.glyph = Chr(224)
         inv.glyphColor = cSalmon
-        inv.supply.eval = false
+        inv.supply.ided = false
         inv.supply.use = useDrinkEat
         
         'Set the magic properties.
         if isMagic = true then
-            inv.supply.evalDR = randomRange(currentLevel, currentLevel * 2)
+            inv.supply.idDR = randomRange(currentLevel, currentLevel * 2)
             inv.supply.effect = effectStrength
             inv.supply.sDesc = "Magic Meat"
         else
@@ -207,12 +207,12 @@ sub generateSupply(inv as inventoryType, currentLevel as integer)
         inv.supply.noise = 1
         inv.glyph = Chr(247)
         inv.glyphColor = cHoneydew
-        inv.supply.eval = false
+        inv.supply.ided = false
         inv.supply.use = useDrinkEat
         
         'Set the magic properties.
         if isMagic = true then
-            inv.supply.evalDR = randomRange(currentLevel, currentLevel * 2)
+            inv.supply.idDR = randomRange(currentLevel, currentLevel * 2)
             inv.supply.effect = effectCurePoison
             inv.supply.sDesc = "Magic Bread"
         else
@@ -258,7 +258,7 @@ function getInvItemDesc(inv as inventoryType) as string
     'Get the supply description.
     if inv.classID = iSupply then
         'If not evaluated, then return main description.
-        if inv.supply.eval = false then
+        if inv.supply.ided = false then
             ret = inv.desc
         else
             'If evaluated, then return the true description.
@@ -268,3 +268,81 @@ function getInvItemDesc(inv as inventoryType) as string
     
     return ret
 end function
+
+'Returns true if item has been evaluated.
+function isIdentified(inv as inventoryType) as integer
+    dim as integer ret
+    
+    'If nothing then mark as identified.
+    if inv.classID = iNone then
+        ret = true
+    else
+        'Select the item type.
+        select case inv.classID
+        case iGold
+            ret = true
+        case iSupply
+            ret = inv.supply.ided
+        end select
+    endif
+    
+    return ret
+end function
+
+'Returns the item description for the item at the given X,Y coordinate.
+function getInventoryItemDescription(inv as inventoryType) as string
+    dim as string ret = "None"
+    
+    'If classID is none, then nothing to do.
+    if inv.classID <> iNone then
+        'Get the gold description.
+        if inv.classID = iGold then
+            ret = inv.desc
+        endif
+    endif
+    
+    'Get the supply description.
+    if inv.classID = iSupply then
+        'If not identified, then return main description.
+        if inv.supply.ided = false then
+            ret = inv.desc
+        else
+            'Return secret description
+            ret = inv.supply.sDesc
+        endif
+    endif
+    
+    return ret
+end function
+
+'Returns the identify difficulty rating.
+function getIdentifyDifficulty(inv as inventoryType) as integer
+    dim as integer ret
+    
+    'If nothing then the difficulty is zero.
+    if inv.classID = iNone then
+        ret = 0
+    else
+        'Select the item.
+        select case inv.classID
+        case iGold
+            ret = 0
+        case iSupply
+            ret = inv.supply.idDR
+        end select
+    endif
+    
+    return ret
+end function
+    
+'Sets identified state to passed type.
+sub setItemIdentified(inv as inventoryType, state as integer)
+    'If nothing, then no identification.
+    if inv.classID <> iNone then
+        'Select the item.
+        select case inv.classID
+        case iSupply
+            inv.supply.ided = state
+        end select
+    endif
+end sub
