@@ -2,7 +2,7 @@
 * map.bi
 * This file contains declarations and functions for building a dungeon level.
 * by Stephen Gatten
-* Last update: June 30, 2014
+* Last update: November 8, 2016
 *****************************************************************************'/
 
 'Minimum and maximum room dimensions
@@ -126,6 +126,7 @@ type levelObject
     declare sub setTile(x as integer, y as integer, newTileID as terrainIDs)
     declare sub getItemFromMap(x as integer, y as integer, inv as inventoryType)
     declare sub generateDungeonLevel()
+    declare sub putItemOnMap(x as integer, y as integer, inv as inventoryType)
     
     declare function isBlocking(x as integer, y as integer) as integer
     declare function isDoorLocked(x as integer, y as integer) as integer
@@ -135,6 +136,7 @@ type levelObject
     declare function getInventoryClassID(x as integer, y as integer) as classIDs
     declare function hasItem(x as integer, y as integer) as integer
     declare function getLevelDescription() as string
+    declare function getEmptySpot(v as mapVector) as integer
 end type
 
 dim shared rooms(1 to numberOfRoomsMax) as roomType
@@ -829,6 +831,13 @@ sub levelObject.generateDungeonLevel()
     _generateItems
 end sub
 
+sub levelObject.putItemOnMap(x as integer, y as integer, inv as inventoryType)
+    'Clear the item definition for this space.
+    clearInventory _level.levelInv(x,y)
+    'Take the item definition in inv and place it into the level's inventory at this space.
+    _level.levelInv(x,y) = inv
+end sub
+
 'This function returns true if the tile at x,y is blocking.
 function levelObject.isBlocking(x as integer, y as integer) as integer
     return _blockingTile(x,y)
@@ -890,6 +899,42 @@ function levelObject.getLevelDescription() as string
     end select
     
     return levelName
+end function
+
+'GET EMPTY SPOT returns true if an empty spot is found, and returns the spot's
+'coordinates as a vector.
+function levelObject.getEmptySpot(v as mapVector) as integer
+    dim as integer ret = FALSE, hi
+    dim as mapVector ev
+    dim as terrainIDs tid
+    
+    'Check character spot.
+    ev.vx = player.locX
+    ev.vy = player.locY
+    hi = hasItem(ev.vx, ev.vy)
+    if hi = FALSE then
+        ret = TRUE
+        v = ev
+    else
+        'Check each tile around the character.
+        for i as compass = north to northwest
+            ev.vx = player.locX
+            ev.vy = player.locY
+            ev += i
+            'Get the tile type.
+            tid = getTileID(ev.vx, ev.vy)
+            'Check to see if it already has an item.
+            hi = hasItem(ev.vx, ev.vy)
+            'If floor and no item, then found space.
+            if (tid = tFloor) and (hi = FALSE) then
+                v = ev
+                ret = TRUE
+                exit for
+            endif
+        next
+    endif
+    
+    return ret
 end function
 
 'Level variable.

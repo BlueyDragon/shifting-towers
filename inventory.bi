@@ -346,3 +346,53 @@ sub setItemIdentified(inv as inventoryType, state as integer)
         end select
     endif
 end sub
+
+'Returns an extended description of the item.
+sub getFullDescription(lines() as string, inv as inventoryType)
+    dim as integer index = 0
+    
+    'Reset the array.
+    redim lines(0 to index) as string
+    
+    'Make sure we have something to describe.
+    if inv.classID <> iNone then
+        'Select the item.
+        select case inv.classID
+        case iSupply
+            index += 1
+            redim preserve lines(0 to index) as string
+            lines(index) = inv.desc
+            select case inv.supply.id
+            case supplyGreenHerb
+                index += 1
+                redim preserve lines(0 to index) as string
+                lines(index) = "A small, green plant with pointed leaves. Common ingredient in Aluran medicine. Heals critical wounds."
+                index += 1
+                redim preserve lines(0 to index) as string
+                lines(index) = "* Magic: Max Healing"
+            case supplyMeat
+                index += 1
+                redim preserve lines(0 to index) as string
+                lines(index) = "A chop of red meat. Heals moderate wounds."
+                index += 1
+                redim preserve lines(0 to index) as string
+                lines(index) = "* Magic: Ferrum Bestia"
+            case supplyBread
+                index += 1
+                redim preserve lines(0 to index) as string
+                lines(index) = "A loaf of flaky Aluran bread. Heals slight wounds."
+                index += 1
+                redim preserve lines(0 to index) as string
+                lines(index) = "* Magic: Cure Poison"
+            end select
+            index += 1
+            redim preserve lines(0 to index) as string
+            if isIdentified(inv) = TRUE then
+                lines(index) = "* Item is identified."
+            else
+                lines(index) = "* Item is not identified."
+            end if
+        end select
+    end if
+
+end sub

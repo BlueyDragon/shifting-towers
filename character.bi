@@ -9,26 +9,28 @@
 'Character attribute type definition.
 type characterInfo
     cName as string * 30 'Name of character, limited to 30 characters.
-    fe(2) as integer 'Ferocity rating array. 0 - base, 1 - modifier
-    en(2) as integer 'Endurance
-    ra(2) as integer 'Radiance
-    ag(2) as integer 'Agility
-    iq(2) as integer 'Learning/Intellect
+    fe(3) as integer 'Ferocity rating array. 0 - base, 1 - modifier, 2 - modifier timer
+    en(3) as integer 'Endurance
+    ra(3) as integer 'Radiance
+    ag(3) as integer 'Agility
+    iq(3) as integer 'Learning/Intellect
     cond as integer 'Current health.
     hits as integer 'Maximum health.
     aura as integer 'Current aura points.
     maxAP as integer 'Maximum aura.
-    mAtk(2) as integer 'Melee attack
-    rAtk(2) as integer 'Ranged attack
-    sAtk(2) as integer 'Magic/Special attack
-    pDef(2) as integer 'Physical defense
-    sDef(2) as integer 'Magic/Special defense
+    mAtk(3) as integer 'Melee attack
+    rAtk(3) as integer 'Ranged attack
+    sAtk(3) as integer 'Magic/Special attack
+    pDef(3) as integer 'Physical defense
+    sDef(3) as integer 'Magic/Special defense
     currXP as integer 'Current spirit rating
     totXP as integer 'Total spirit rating
     currGold as integer 'Current gold amount
     totGold as integer 'Lifetime gold amount
     location as mapCoordinate       'Character's current X and Y location.
     backpack(97 to 122) as inventoryType
+    isPoisoned as integer       'Poisoned flag; true if character is poisoned.
+    poisonLevel as integer      'Strength of poison affecting character.
 end type
 
 'The backpack variable is the character inventory. The odd subscript ranges are
@@ -44,8 +46,15 @@ type character
     
     public:
     declare property charName() as string
+    
+    'FEROCITY base, modifier, and modifier timer values
     declare property fe(newFE as integer)
     declare property fe() as integer
+    declare property feMod(newFEMod as integer)
+    declare property feMod() as integer
+    declare property feTmr(newFETmr as integer)
+    declare property feTmr() as integer
+    
     declare property en(newEN as integer)
     declare property en() as integer
     declare property ra(newRA as integer)
@@ -89,6 +98,11 @@ type character
     declare property lowInv() as integer
     declare property highInv() as integer
     
+    declare property poisoned() as integer
+    declare property poisoned(flag as integer)
+    declare property poisonLvl() as integer
+    declare property poisonLvl(amount as integer)
+    
     declare function generateCharacter() as integer
     declare function moveCharacter() as integer
     declare function getFreeInventoryIndex() as integer
@@ -97,6 +111,7 @@ type character
     declare sub addInventoryItem(index as integer, inv as inventoryType)
     declare sub getInventoryItem(index as integer, inv as inventoryType)
     declare sub printStats ()
+    declare sub tick()
     
 end type
 
@@ -105,12 +120,28 @@ Property character.charName() As String
    Return _cInfo.cName
 End Property
 
+'FEROCITY base value
 property character.fe(newFE as integer)
     _cInfo.fe(0) = newFE
 end property
-
 property character.fe() as integer
     return _cInfo.fe(0)
+end property
+
+'FEROCITY modifier
+property character.feMod(newFEMod as integer)
+    _cInfo.fe(1) = newFEMod
+end property
+property character.feMod() as integer
+    return _cInfo.fe(1)
+end property
+
+'FEROCITY modifier timer
+property character.feTmr(newFETmr as integer)
+    _cInfo.fe(2) = newFETmr
+end property
+property character.feTmr() as integer
+    return _cInfo.fe(2)
 end property
 
 property character.en(newEN as integer)
@@ -268,6 +299,22 @@ End Property
 Property character.highInv() As Integer
    Return UBound(_cInfo.backpack)
 End Property
+
+property character.poisoned() as integer
+    return _cInfo.isPoisoned
+end property
+
+property character.poisoned(flag as integer)
+    _cInfo.isPoisoned = flag
+end property
+
+property character.poisonLvl() as integer
+    return _cInfo.poisonLevel
+end property
+
+property character.poisonLvl(amount as integer)
+    _cInfo.poisonLevel = amount
+end property
 
 'Returns a free inventory slot index, or -1 if none exist.
 function character.getFreeInventoryIndex() as integer
@@ -511,4 +558,129 @@ sub character.printStats()
     screenunlock
 end sub
 
+'TICK goes through all bonus settings and adjusts counts, applies poison, etc.
+sub character.tick()
+    dim as integer roll1, roll2, v1, v2
+    
+    'Poison affects character based on strength of poison.
+    if _cInfo.isPoisoned = TRUE then
+        'Get the strength of the poison.
+        v1 = _cInfo.poisonLevel
+        'Get the character's endurance, plus any bonus
+        v2 = _cInfo.en(0) + _cInfo.en(1)
+        
+        'Roll to determine whether poison succeeds this turn.
+        roll1 = randomRange(1,v1)
+        roll2 = randomRange(1,v2)
+        
+        'If poison wins...
+        if roll1 > roll2 then
+            'Decrement health by one.
+            _cInfo.cond = _cInfo.cond - 1
+        endif
+    endif
+    
+    'Check attribute bonus counts.
+    'Ferocity
+    if _cInfo.fe(2) > 0 then
+        'Decrement the count.
+        _cInfo.fe(2) -= 1
+        if _cInfo.fe(2) <= 0 then
+            'Reset bonus amount.
+            _cInfo.fe(1) = 0
+        endif
+    endif
+    
+    'Endurance
+    if _cInfo.en(2) > 0 then
+        'Decrement the count.
+        _cInfo.en(2) -= 1
+        if _cInfo.en(2) <= 0 then
+            'Reset bonus amount.
+            _cInfo.en(1) = 0
+        endif
+    endif
+    
+    'Radiance
+    if _cInfo.ra(2) > 0 then
+        'Decrement the count.
+        _cInfo.ra(2) -= 1
+        if _cInfo.ra(2) <= 0 then
+            'Reset bonus amount.
+            _cInfo.ra(1) = 0
+        endif
+    endif
+    
+    'Agility
+    if _cInfo.ag(2) > 0 then
+        'Decrement the count.
+        _cInfo.ag(2) -= 1
+        if _cInfo.ag(2) <= 0 then
+            'Reset bonus amount.
+            _cInfo.ag(1) = 0
+        endif
+    endif
+    
+    'Learning
+    if _cInfo.iq(2) > 0 then
+        'Decrement the count.
+        _cInfo.iq(2) -= 1
+        if _cInfo.iq(2) <= 0 then
+            'Reset bonus amount.
+            _cInfo.iq(1) = 0
+        endif
+    endif
+    
+    'Melee Attack
+    if _cInfo.mAtk(2) > 0 then
+        'Decrement the count.
+        _cInfo.mAtk(2) -= 1
+        if _cInfo.mAtk(2) <= 0 then
+            'Reset bonus amount.
+            _cInfo.mAtk(1) = 0
+        endif
+    endif
+    
+    'Ranged Attack
+    if _cInfo.rAtk(2) > 0 then
+        'Decrement the count.
+        _cInfo.rAtk(2) -= 1
+        if _cInfo.rAtk(2) <= 0 then
+            'Reset bonus amount.
+            _cInfo.rAtk(1) = 0
+        endif
+    endif
+    
+    'Special Attack
+    if _cInfo.sAtk(2) > 0 then
+        'Decrement the count.
+        _cInfo.sAtk(2) -= 1
+        if _cInfo.sAtk(2) <= 0 then
+            'Reset bonus amount.
+            _cInfo.sAtk(1) = 0
+        endif
+    endif
+    
+    'Physical Defense
+    if _cInfo.pDef(2) > 0 then
+        'Decrement the count.
+        _cInfo.pDef(2) -= 1
+        if _cInfo.pDef(2) <= 0 then
+            'Reset bonus amount.
+            _cInfo.pDef(1) = 0
+        endif
+    endif
+    
+    'Special Defense
+    if _cInfo.sDef(2) > 0 then
+        'Decrement the count.
+        _cInfo.sDef(2) -= 1
+        if _cInfo.sDef(2) <= 0 then
+            'Reset bonus amount.
+            _cInfo.sDef(1) = 0
+        endif
+    endif
+end sub
+
+'Set up shared player character variable.
 dim shared player as character    

@@ -864,7 +864,8 @@ Type tMsgbox
    Declare Property TitleColor() As UInteger                'Returns the window title color.
    Declare Property Shadow (s As Integer)                   'Sets the shadow flag. 
    Declare Property Shadow () As Integer                    'Returns the shadow flag. 
-   Declare Function MessageBox (prompt As String) As btnID  'Draws messagebox on screen.
+   Declare Function MessageBox (prompt As String) As btnID  'Draws messagebox on screen using prompt.
+   Declare Function MessageBox (lines() As String) As btnID  'Draws messagebox on screen using array of lines.
 End Type
 
 'Initalizes the object.
@@ -1152,6 +1153,259 @@ Function tMsgbox.MessageBox(prompt As String) As btnID
       _win.DrawWindow
       'Draw the prompt.
       PutText prcopy, prow, pcol, _promptcolor
+      ScreenUnlock
+      'Get the input.
+      Do
+         ch = Inkey
+         If ch <> "" Then
+            'Process enter key.
+            If ch = KeyEnter Then
+               btn = activebtn
+            EndIf
+            'Process escape key.
+            If ch = KeyEsc Then
+               btn = gbnCancel
+            EndIf
+            'Process tab key.
+            If ch = KeyTab Then
+               'OK-Cancel messagebox type.
+               If _msgstyle = gmbOKCancel Then
+                  'Increment the button index.
+                  If activebtn = gbnOK Then
+                     activebtn = gbnCancel
+                     'Toggle selected state.
+                     _win.ButtonSelected(bidx1) = tFalse 
+                     _win.ButtonSelected(bidx2) = tTrue 
+                  Else
+                     activebtn = gbnOK
+                     'Toggle selected state.
+                     _win.ButtonSelected(bidx1) = tTrue 
+                     _win.ButtonSelected(bidx2) = tFalse 
+                  EndIf
+                  'Redraw the buttons.
+                  _win.DrawButton(bidx1)
+                  _win.DrawButton(bidx2)
+               EndIf
+               'Yes-No messagebox type.
+               If _msgstyle = gmbYesNo Then
+                  'Increment the button index.
+                  If activebtn = gbnYes Then
+                     activebtn = gbnNo
+                     'Toggle selected state.
+                     _win.ButtonSelected(bidx1) = tFalse 
+                     _win.ButtonSelected(bidx2) = tTrue 
+                  Else
+                     activebtn = gbnYes
+                     'Toggle selected state.
+                     _win.ButtonSelected(bidx1) = tTrue 
+                     _win.ButtonSelected(bidx2) = tFalse 
+                  EndIf
+                  'Redraw the buttons.
+                  _win.DrawButton(bidx1)
+                  _win.DrawButton(bidx2)
+               EndIf
+               'Yes-No-Cancel messagebox type.
+               If _msgstyle = gmbYesNoCancel Then
+                  'Increment the button index.
+                  If activebtn = gbnYes Then
+                     activebtn = gbnNo
+                     'Toggle selected state.
+                     _win.ButtonSelected(bidx1) = tFalse 
+                     _win.ButtonSelected(bidx2) = tTrue 
+                     _win.ButtonSelected(bidx3) = tFalse 
+                  ElseIf activebtn = gbnNo Then
+                     activebtn = gbnCancel
+                     'Toggle selected state.
+                     _win.ButtonSelected(bidx1) = tFalse 
+                     _win.ButtonSelected(bidx2) = tFalse 
+                     _win.ButtonSelected(bidx3) = tTrue 
+                  ElseIf activebtn = gbnCancel Then
+                     activebtn = gbnYes
+                     'Toggle selected state.
+                     _win.ButtonSelected(bidx1) = tTrue 
+                     _win.ButtonSelected(bidx2) = tFalse 
+                     _win.ButtonSelected(bidx3) = tFalse 
+                  EndIf
+                  'Redraw the buttons.
+                  _win.DrawButton(bidx1)
+                  _win.DrawButton(bidx2)
+                  _win.DrawButton(bidx3)
+               EndIf
+            EndIf
+         EndIf
+         Sleep 1
+      Loop Until (btn = gbnOK) Or (btn = gbnCancel) Or (btn = gbnYes) Or (btn = gbnNo)
+   End If
+   'Destroy window and restoe background.
+   _win.DestroyWindow
+       
+   Return btn
+End Function
+
+'Draws a message box on the screen and returns the button id.
+'lines() is an array of strings to print.
+Function tMsgbox.MessageBox(lines() As String) As btnID
+   Dim As btnID btn, activebtn
+   Dim As String btn1, btn2, btn3, ch
+   Dim As Integer lprompt, row1, col1, row2, col2, lncnt
+   Dim As Integer prow, pcol, btnrow, btn1col, btn2col, btn3col
+   Dim As Integer bidx1, bidx2, bidx3
+   
+   If _win.InitOK = tTrue Then
+      ScreenLock
+      For i As Integer = LBound(lines) To UBound(lines)
+         'Count the number of lines we have.
+         lncnt += 1
+         'Get longest line.
+         If Len(lines(i)) > lprompt Then
+            lprompt = Len(lines(i))
+         EndIf
+      Next
+      'Draw the box.
+      If lprompt < 30 Then lprompt = 30
+      'Calculate the screen center point of the prompt.
+      prow = tCenterY(6) - 2
+      pcol = tCenterX(lprompt)
+      'Build the box around the number of lines.
+      row1 = prow - (lncnt / 2)
+      row2 = prow + (lncnt / 2) + 5
+      col1 = tCenterX(lprompt) - 2
+      col2 = col1 + lprompt + 3
+      'Set the window dimensions.
+      _win.RowTop = row1
+      _win.ColLeft = col1
+      _win.RowBottom = row2
+      _win.ColRight = col2
+      'Draw the OK, Cancel buttons.
+      btnRow = row2 - 2
+      'Set the messagebox buttons.
+      'OK
+      If _msgstyle = gmbOK Then
+         btn1 = "[ OK ]"
+         activebtn = gbnOK
+         
+         _btn1.Text = btn1
+         _btn1.SelText = "< OK >"
+         _btn1.Row = btnrow
+         _btn1.Col = tCenterX(col1, col2, btn1)
+         _btn1.Selected = tTrue
+         _btn1.BColor = _btncolor
+         _btn1.SelColor = _btnselcolor
+         _btn1.Shadow = _win.Shadow
+         _btn1.ID = gbnOK
+         bidx1 = _win.AddButton(_btn1)
+      EndIf
+      'OK-Cancel
+      If _msgstyle = gmbOKCancel Then
+         btn1 = "[ OK ]"
+         btn2 = " [ Cancel ]"
+         btn1col = tCenterX(col1, col2, btn1 & btn2)
+         btn2col = btn1col + Len(btn1)
+         activebtn = gbnOK
+
+         _btn1.Text = btn1
+         _btn1.SelText = "< OK >"
+         _btn1.Row = btnrow
+         _btn1.Col = btn1col
+         _btn1.Selected = tTrue
+         _btn1.BColor = _btncolor
+         _btn1.SelColor = _btnselcolor
+         _btn1.Shadow = _win.Shadow
+         _btn1.ID = gbnOK
+         bidx1 = _win.AddButton(_btn1)
+
+         _btn2.Text = btn2
+         _btn2.SelText = " < Cancel >"
+         _btn2.Row = btnrow
+         _btn2.Col = btn2col
+         _btn2.Selected = tFalse
+         _btn2.BColor = _btncolor
+         _btn2.SelColor = _btnselcolor
+         _btn2.Shadow = _win.Shadow
+         _btn2.ID = gbnCancel
+         bidx2 = _win.AddButton(_btn2)
+      EndIf
+      'Yes-No
+      If _msgstyle = gmbYesNo Then
+         btn1 = "[ Yes ]"
+         btn2 = " [ No ]"
+         btn1col = tCenterX(col1, col2, btn1 & btn2)
+         btn2col = btn1col + Len(btn1)
+         activebtn = gbnYes
+         
+         _btn1.Text = btn1
+         _btn1.SelText = "< Yes >"
+         _btn1.Row = btnrow
+         _btn1.Col = btn1col
+         _btn1.Selected = tTrue
+         _btn1.BColor = _btncolor
+         _btn1.SelColor = _btnselcolor
+         _btn1.Shadow = _win.Shadow
+         _btn1.ID = gbnYes
+         bidx1 = _win.AddButton(_btn1)
+
+         _btn2.Text = btn2
+         _btn2.SelText = " < No >"
+         _btn2.Row = btnrow
+         _btn2.Col = btn2col
+         _btn2.Selected = tFalse
+         _btn2.BColor = _btncolor
+         _btn2.SelColor = _btnselcolor
+         _btn2.Shadow = _win.Shadow
+         _btn2.ID = gbnNo
+         bidx2 = _win.AddButton(_btn2)
+      EndIf
+      'Yes-No-Cancel
+      If _msgstyle = gmbYesNoCancel Then
+         btn1 = " [ Yes ]"
+         btn2 = " [ No ]"
+         btn3 = " [ Cancel ]" 
+         btn1col = tCenterX(col1, col2, btn1 & btn2 & btn3)
+         btn2col = btn1col + Len(btn1)
+         btn3col = btn1col + Len(btn1) + Len(btn2)
+         activebtn = gbnYes
+         
+         _btn1.Text = btn1
+         _btn1.SelText = " < Yes >"
+         _btn1.Row = btnrow
+         _btn1.Col = btn1col
+         _btn1.Selected = tTrue
+         _btn1.BColor = _btncolor
+         _btn1.SelColor = _btnselcolor
+         _btn1.Shadow = _win.Shadow
+         _btn1.ID = gbnYes
+         bidx1 = _win.AddButton(_btn1)
+
+         _btn2.Text = btn2
+         _btn2.SelText = " < No >"
+         _btn2.Row = btnrow
+         _btn2.Col = btn2col
+         _btn2.Selected = tFalse
+         _btn2.BColor = _btncolor
+         _btn2.SelColor = _btnselcolor
+         _btn2.Shadow = _win.Shadow
+         _btn2.ID = gbnNo
+         bidx2 = _win.AddButton(_btn2)
+
+         _btn3.Text = btn3
+         _btn3.SelText = " < Cancel >"
+         _btn3.Row = btnrow
+         _btn3.Col = btn3col
+         _btn3.Selected = tFalse
+         _btn3.BColor = _btncolor
+         _btn3.SelColor = _btnselcolor
+         _btn3.Shadow = _win.Shadow
+         _btn3.ID = gbnCancel
+         bidx3 = _win.AddButton(_btn3)
+      EndIf
+      'Draw the window.
+      _win.DrawWindow
+      'Draw the lines.
+      'PutText prcopy, prow, pcol, _promptcolor
+      For i As Integer = 1 To UBound(lines)
+         PutText lines(i), prow, pcol, _promptcolor
+         prow += 1
+      Next
       ScreenUnlock
       'Get the input.
       Do

@@ -89,13 +89,6 @@ const dSanctum = "the Sanctum"
 '    "This is the first special tile description for the Sewer.", _
 '    "This is the second special tile description for the Sewer." }
 
-'Coordinates. The mapCoordinate type defines a location in the level array;
-'It is the X and Y location of a point.
-type mapCoordinate
-    x as integer
-    y as integer
-end type
-
 'Working variables.
 Dim As String cKey
 Dim As Integer mRet

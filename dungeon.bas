@@ -2,7 +2,7 @@
 * dungeon.bas
 * Main program file for Dungeon of Doom
 * by Stephen Gatten
-* Last update: September 2, 2014
+* Last update: November 8, 2016
 *****************************************************************************'/
 
 #include "images/bg-title.bi"
@@ -11,6 +11,7 @@
 #include "fbgfx.bi"
 #include "tWidgets.bi"
 
+#include "vector.bi"
 #include "defs.bi"
 #include "utils.bi"
 #include "mainmenu.bi"
@@ -18,7 +19,6 @@
 #include "character.bi"
 #include "intro.bi"
 #include "map.bi"
-#include "vector.bi"
 #include "commands.bi"
 
 'Displays the game title screen. This subroutine is obsolete, the game now loads
@@ -349,7 +349,7 @@ sub drawInventoryScreen()
     
     'Draw the command list
     row += 2
-    text = "(D)rop - (I)dentify"
+    text = "(D)rop - (I)dentify - (L)ook"
     col = centerX(text)
     placeGlyphShadow text, col, row, cWhite
     screenunlock
@@ -363,6 +363,16 @@ Sub showMsg(newTitle As String, mess As String, mtype As tWidgets.MsgBoxType)
    mb.MessageStyle = mtype
    mb.Title = newTitle
    btn = mb.MessageBox(mess)
+end sub
+
+'SHOW MSG LINES prints a multi-line message to the user using msgbox.
+sub showMsgLines(newTitle as string, mess() as string, mtype as tWidgets.MsgBoxType)
+    dim as tWidgets.tMsgbox mb
+    dim as tWidgets.btnID btn
+    
+    mb.MessageStyle = mtype
+    mb.Title = newTitle
+    btn = mb.MessageBox(mess())
 end sub
 
 'Processes the IDENTIFY command.
@@ -445,6 +455,225 @@ function processIdentify() as integer
     
     return ret
 end function
+
+'Processes the LOOK inventory command.
+function processLook() as integer
+    dim as string res, mask, desc
+    dim as integer i, iItem, ret = false
+    dim as inventoryType inv
+    dim as tWidgets.btnID btn
+    dim as tWidgets.tInputBox ib
+    dim lines() as string
+    
+    'Make sure there is something to look at.
+    for i = player.lowInv to player.highInv
+        iItem = player.hasInventoryItem(i)
+        if iItem = true then
+            'Get the inventory item.
+            player.getInventoryItem i, inv
+            'Build the mask.
+            mask &= chr(i)
+        endif
+    next
+    
+    if len(mask) = 0 then
+        showMsg "Look", "You have nothing in your pack to look at.", tWidgets.MsgBoxType.gmbOK
+    else
+        'Draws an input box on the screen.
+        ib.Title = "Look at Items"
+        ib.Prompt = "Select item(s) to look at (" & mask & ")"
+        ib.Row = 39
+        ib.EditMask = mask
+        ib.MaxLen = len(mask)
+        ib.InputLen = len(mask)
+        btn = ib.Inputbox(res)
+        
+        'Look at each item in the list.
+        if(btn <> tWidgets.btnID.gbnCancel) and (len(res) > 0) then
+            for i = 1 to len(res)
+                'Get index into character inventory.
+                iItem = asc(res,i)
+                
+                'Get the inventory item.
+                player.getInventoryItem iItem, inv
+                getFullDescription lines(), inv
+                
+                if ubound(lines) > 0 then
+                    showMsgLines getInventoryItemDescription(inv), lines(), tWidgets.MsgBoxType.gmbOK
+                endif
+            next
+        endif
+    endif
+    
+    return ret
+end function
+
+'PROCESS DROP drops an item from the character's inventory.
+function processDrop() as integer
+    dim as string res, mask, desc
+    dim as integer i, iRet, iItem, ret = FALSE
+    dim as inventoryType inv
+    dim as tWidgets.btnID btn
+    dim as tWidgets.tInputbox ib
+    dim as mapVector targetVector
+    
+    'Make sure there is something in the inventory that can be dropped.
+    for i = player.lowInv to player.highInv
+        iItem = player.hasInventoryItem(i)
+        if iItem = TRUE then
+            'Get the inventory item.
+            player.getInventoryItem i, inv
+            'Build the mask.
+            mask &= chr(i)
+        endif
+    next
+    
+    if len(mask) = 0 then
+        showMsg "Drop", "You have nothing in the pack to drop.", tWidgets.MsgBoxType.gmbOK
+    else
+        'Draws an input box on the screen.
+        ib.Title = "Drop Items"
+        ib.Prompt = "Select item(s) to drop (" & mask & ")"
+        ib.Row = 39
+        ib.EditMask = mask
+        ib.MaxLen = len(mask)
+        ib.InputLen = len(mask)
+        btn = ib.InputBox(res)
+        
+        'Process drop for each item in the list, one by one.
+        if(btn <> tWidgets.btnID.gbnCancel) and (len(res) > 0) then
+            for i = 1 to len(res)
+                'Get index into character inventory.
+                iItem = asc(res,i)
+                'Get the inventory item.
+                player.getInventoryItem iItem, inv
+                'Get the item's name
+                desc = getInventoryItemDescription(inv)
+                'Look for an empty space on the map.
+                iRet = level.getEmptySpot(targetVector)
+                
+                if iRet = TRUE then
+                    'There's an empty spot. Put the item back onto the map.
+                    level.putItemOnMap targetVector.vx, targetVector.vy, inv
+                    'Clear the item.
+                    clearInventory inv
+                    'Put the blank item back into the player's inventory, effectively clearing the space.
+                    player.addInventoryItem iItem, inv
+                    ret = TRUE
+                    showMsg "Drop","Dropped " & desc,tWidgets.MsgBoxType.gmbOK
+                else
+                    'No empty spots.
+                    showMsg "Drop","There are no available spots here to drop item.",tWidgets.MsgBoxType.gmbOK
+                    exit for
+                endif
+            next
+        endif
+    endif
+    
+    return ret
+end function
+
+'PROCESS USE invokes the special ability of a consumable item.
+function processUse() as integer
+    dim as string res, mask, desc1, desc2
+    dim as integer i, iItem, identified, idDiff, ret = false
+    dim as inventoryType inv
+    dim as tWidgets.btnID btn
+    dim as tWidgets.tInputBox ib
+    dim lines() as string
+    
+    'Make sure there is something to use.
+    for i = player.lowInv to player.highInv
+        iItem = player.hasInventoryItem(i)
+        if iItem = true then
+            'Get the inventory item.
+            player.getInventoryItem i, inv
+            'Build the mask.
+            mask &= chr(i)
+        endif
+    next
+    
+    if len(mask) = 0 then
+        showMsg "Use", "You have nothing in your pack to use.", tWidgets.MsgBoxType.gmbOK
+    else
+        'Draws an input box on the screen.
+        ib.Title = "Use Items"
+        ib.Prompt = "Select item(s) to use (" & mask & ")"
+        ib.Row = 39
+        ib.EditMask = mask
+        ib.MaxLen = len(mask)
+        ib.InputLen = len(mask)
+        btn = ib.Inputbox(res)
+        
+        'Look at each item in the list.
+        if(btn <> tWidgets.btnID.gbnCancel) and (len(res) > 0) then
+            for i = 1 to len(res)
+                'Get index into character inventory.
+                iItem = asc(res,i)
+                
+                'Get the inventory item.
+                player.getInventoryItem iItem, inv
+               
+                'Check the identify state.
+                identified = isIdentified(inv)
+                
+                'Get the identity difficulty.
+                idDiff = getIdentifyDifficulty(inv)
+                
+                'Get the item name.
+                desc1 = getInventoryItemDescription(inv)
+                desc2 = ""
+                
+                'Apply the item's effect.
+                if inv.supply.id = supplyGreenHerb then
+                    'Identified?
+                    if (identified = TRUE) and (idDiff > 0) then
+                        player.cond = player.hits
+                        desc2 = " completely heals you."
+                    else
+                        player.cond = player.cond + (player.hits * 0.5)
+                        if player.cond > player.hits then
+                            player.cond = player.hits
+                        endif
+                        desc2 = " heals you."
+                    endif
+                elseif inv.supply.id = supplyMeat then
+                    player.cond = player.cond + (player.hits * 0.25)
+                    if player.cond > player.hits then
+                        player.cond = player.hits
+                    endif
+                    desc2 = " heals you."
+                    if (identified = TRUE) and (idDiff > 0) then
+                        player.feMod = randomRange(1, player.fe)
+                        player.feTmr = randomRange(1, 100)
+                        desc2 = " heals you and makes you more ferocious."
+                    endif
+                elseif inv.supply.id = supplyBread then
+                    player.cond = player.cond + (player.hits * 0.1)
+                    if player.cond > player.hits then
+                        player.cond = player.hits
+                    endif
+                    desc2 = "heals you."
+                    if (identified = TRUE) and (idDiff > 0) then
+                        if player.poisoned = TRUE then
+                            player.poisoned = FALSE
+                            player.poisonLvl = 0
+                            desc2 = " heals you and cures your poison."
+                        endif
+                    endif
+                endif
+                
+                showMsg "Use", desc1 & desc2, tWidgets.MsgBoxType.gmbOK
+                'Clear the item.
+                clearInventory inv
+                'Put the blank item back into inventory.
+                player.addInventoryItem iItem, inv
+            next
+        endif
+    endif
+    
+    return ret
+end function
     
 'Manages the character's inventory.
 sub manageInventory()
@@ -463,7 +692,34 @@ sub manageInventory()
             if kChar = "I" then
                 ret = processIdentify()
                 'Screen changed.
-                if ret = true then
+                if ret = TRUE then
+                    drawInventoryScreen
+                endif
+            endif
+            
+            '(U)se
+            if kChar = "U" then
+                ret = processUse()
+                'Screen changed.
+                if ret = TRUE then
+                    drawInventoryScreen
+                endif
+            endif
+            
+            '(D)rop
+            if kChar = "D" then
+                ret = processDrop()
+                'Screen changed.
+                if ret = TRUE then
+                    drawInventoryScreen
+                endif
+            endif
+            
+            '(L)ook
+            if kChar = "L" then
+                ret = processLook()
+                'Screen changed.
+                if ret = TRUE then
                     drawInventoryScreen
                 endif
             endif
@@ -509,6 +765,9 @@ elseif mm = mMenu.mInfo then
         'Print the instructions.
         endif
 loop until mm <> mMenu.mInfo
+
+'Set the dead flag.
+dim as integer isDead = FALSE
 
 'Main game loop.
 if mm <> mMenu.mQuit then
@@ -640,7 +899,22 @@ if mm <> mMenu.mQuit then
                     drawMainScreen
                 endif
             endif
+            
+            'Since the player has pressed a key, run the character tick.
+            player.tick
+            
+            'Check whether the character is dead.
+            if player.cond <= 0 then
+                isDead = TRUE
+            endif
         endif
     sleep 1
-    loop until cKey = kESC
+    loop until (cKey = kESC) or (isDead = TRUE)
+endif
+
+'Print dead message.
+if isDead = TRUE then
+    cls
+    print player.charName & " has died."
+    sleep
 endif

@@ -23,7 +23,7 @@ end function
 'Moves a character.
 function moveCharacter(direction as compass) as integer
     dim as integer ret = false, block
-    dim as vector v = vector(player.locX,player.locY)
+    dim as mapVector v = mapVector(player.locX,player.locY)
     dim as terrainIDs tileID
     
     v += direction

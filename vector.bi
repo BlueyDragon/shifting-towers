@@ -1,8 +1,8 @@
 /'****************************************************************************
 * vector.bi
-* Header file for the VECTOR object.
+* Header file for the MAPVECTOR object.
 * by Stephen Gatten
-* Last update: July 2, 2014
+* Last update: November 8, 2016
 *****************************************************************************'/
 
 'Compass directions.
@@ -17,8 +17,15 @@ enum compass
     northwest
 end enum
 
+'Coordinates. The mapCoordinate type defines a location in the level array;
+'It is the X and Y location of a point.
+type mapCoordinate
+    x as integer
+    y as integer
+end type
+
 'Two-dimensional vector type.
-type vector
+type mapVector
     private:
     _x as integer
     _y as integer
@@ -39,36 +46,36 @@ type vector
 end type
 
 'Empty constructor.
-constructor vector()
+constructor mapVector()
     _x = 0
     _y = 0
 end constructor
 
 'Standard constructor.
-constructor vector(x as integer, y as integer)
+constructor mapVector(x as integer, y as integer)
     _x = x
     _y = y
 end constructor
     
 'Properties to set and return x and y components.
-Property vector.vx (newX As Integer)
+Property mapVector.vx (newX As Integer)
     _x = newX
 end Property
 
-Property vector.vx () As Integer
+Property mapVector.vx () As Integer
     return _x
 end Property
 
-Property vector.vy (newY As Integer)
+Property mapVector.vy (newY As Integer)
     _y = newY
 end Property
 
-Property vector.vy () As Integer
+Property mapVector.vy () As Integer
     return _y
 end Property
 
 'Updates x and y using compass direction.
-operator vector.+= (compassDirection as compass)
+operator mapVector.+= (compassDirection as compass)
     if (compassDirection >= north) and (compassDirection <= northwest) then
         _x += _directionMatrix(compassDirection).x
         _y += _directionMatrix(compassDirection).y
@@ -76,7 +83,7 @@ operator vector.+= (compassDirection as compass)
 end operator
 
 'Sets vector to zero.
-sub vector.clearVector()
+sub mapVector.clearVector()
     _x = 0
     _y = 0
 end sub
