@@ -28,9 +28,11 @@ type characterInfo
     currGold as integer 'Current gold amount
     totGold as integer 'Lifetime gold amount
     location as mapCoordinate       'Character's current X and Y location.
-    backpack(97 to 122) as inventoryType
     isPoisoned as integer       'Poisoned flag; true if character is poisoned.
     poisonLevel as integer      'Strength of poison affecting character.
+    
+    backpack(97 to 122) as inventoryType
+    equipment(slotMain to slotRingL) as inventoryType
 end type
 
 'The backpack variable is the character inventory. The odd subscript ranges are
@@ -103,16 +105,17 @@ type character
     declare property poisonLvl() as integer
     declare property poisonLvl(amount as integer)
     
-    declare function generateCharacter() as integer
-    declare function moveCharacter() as integer
-    declare function getFreeInventoryIndex() as integer
-    declare function hasInventoryItem(index as integer) as integer
-    
     declare sub addInventoryItem(index as integer, inv as inventoryType)
     declare sub getInventoryItem(index as integer, inv as inventoryType)
     declare sub printStats ()
     declare sub tick()
     
+    declare function generateCharacter() as integer
+    declare function moveCharacter() as integer
+    declare function getFreeInventoryIndex() as integer
+    declare function hasInventoryItem(index as integer) as integer
+    declare function canEquip(inv as inventoryType) as integer
+
 end type
 
 'Returns the character name.
@@ -316,177 +319,40 @@ property character.poisonLvl(amount as integer)
     _cInfo.poisonLevel = amount
 end property
 
-'Returns a free inventory slot index, or -1 if none exist.
-function character.getFreeInventoryIndex() as integer
-    dim as integer ret = -1
-    
-    'Look for an empty inventory slot.
-    for i as integer = lbound(_cInfo.backpack) to ubound(_cInfo.backpack)
-        'Examine class ID.
-        if _cInfo.backpack(i).classID = iNone then
-            'Empty slot.
-            ret = i
-            exit for
-        endif
-    next
-        
-    return ret
-end function
-
-'Returns true if an item exists in the given inventory slot.
-function character.hasInventoryItem(index as integer) as integer
-    'Validate the index.
-    if index >= lbound(_cInfo.backpack) and index <= ubound(_cInfo.backpack) then
-        'Check the class ID.
-        if _cInfo.backpack(index).classID = iNone then
-            return false
-        else
-            return true
-        endif
-    else
-        return false
-    endif
-end function
-
-'Generates a new character.
-function character.generateCharacter() as integer
-    dim as string enteredName, prompt, sKey
-    dim as integer done = false, ret = true, tx, ty
-    dim as tWidgets.btnID btn
-    dim as tWidgets.tInputbox ib
-    
-    'Set up user input prompt.
-    prompt = "Press R to reroll stats, <ENTER> to accept, or <ESC> to exit to menu."
-    tx = (CenterX(prompt)) * characterWidth
-    ty = (textRows - 6) * characterHeight
-    
-    /'Get the name of the character, using simple input. This loop is obsolete,
-    'as the program now uses tWidgets.
-    do
-        cls
-        'Using simple input here.
-        input "Enter your character's name (30 characters maximum): ",enteredName
-        
-        'Validate the name.
-        if len(enteredName) > 0 and len(enteredName) < 31 then
-            done = true
-        else
-            'Let the user know what went wrong.
-            cls
-            if len(enteredName) = 0 then
-                print "A name is required for your character. Press any key to continue."
-                sleep
-                clearKeys
-            endif
-            if len(enteredName) > 30 then
-                print "Your character's name is too long. There is a thirty character limit. Press any key to continue."
-                sleep
-                clearKeys
-            endif
-        endif
-        sleep 10
-    loop until done = true
-    
-    done = false
-    '/
-    
-    'Draw the background
-    screenlock
-    drawBackground bgShield()
-    screenunlock
-    
-    ib.title = "Character Name"
-    ib.prompt = "Enter your character's name:"
-    ib.maxLen = 30
-    ib.inputLen = 30
-    
-    'Get the name of the character.
-    btn = ib.inputbox(enteredName)
-    if btn = tWidgets.btnID.gbnCancel then
-        ret = false
-    endif
-    if btn = tWidgets.btnID.gbnOK then
-        ret = true
-    endif
-    
-    'Display character.
-    if ret = true then
-        'Generate the character data.
-        do
-            with _cInfo
-                .cName = enteredName
-                .fe(0) = randomRange(1,20)
-                .en(0) = randomRange(1,20)
-                .ra(0) = randomRange(1,20)
-                .ag(0) = randomRange(1,20)
-                .iq(0) = randomRange(1,20)
-                .cond = randomRange(4,18) + (.en(0) / 4)
-                .hits = .cond
-                .aura = randomRange(4,18) + (.ra(0) / 4)
-                .maxAP = .aura
-                .mAtk(0) = .fe(0) + .en(0)
-                .rAtk(0) = .fe(0) + .ag(0)
-                .sAtk(0) = .ra(0) + .iq(0)
-                .pDef(0) = .en(0) + .ag(0)
-                .sDef(0) = .ag(0) + .iq(0)
-                .currXP = 0
-                .totXP = 0
-                .currGold = 0
-                .totGold = 0
-                .location.x = 0
-                .location.y = 0
-            end with
-        
-        'Print out the current character stats.
-        printStats
-        drawShadowedText tx, ty, prompt
-        
-        'Get the user command.
-        do
-            'Get the keypress.
-            sKey = inkey
-            'Format to lowercase.
-            sKey = lcase(sKey)
-            'if escape, exit back to the menu.
-            if sKey = kEsc then
-                done = true
-                ret = false
-            endif
-            'If enter, continue with the game.
-            if sKey = kEnter then
-                done = true
-            endif
-            sleep 10
-        loop until (sKey = "r") or (sKey = kEsc) or (sKey = kEnter)
-    loop until done = true
-    endif
-    
-    return ret
-end function
-
 'Adds inventory item to character inventory slot.
 sub character.addInventoryItem(index as integer, inv as inventoryType)
-    'Validate the index.
-    if index >= lbound(_cInfo.backpack) and index <= ubound(_cInfo.backpack) then
-        'Clear the inventory slot.
-        clearInventory _cInfo.backpack(index)
-        
-        'Set the item into the inventory slot.
-        _cInfo.backpack(index) = inv
+    'Check to see if the item needs to go into the equipment.
+    if index >= lbound(_cInfo.equipment) and index <= ubound(_cInfo.equipment) then
+        'Clear the equipment slot.
+        clearInventory _cInfo.equipment(index)
+        'Set the item into the equipment slot.
+        _cInfo.equipment(index) = inv
+    else
+        'Validate the index.
+        if index >= lbound(_cInfo.backpack) and index <= ubound(_cInfo.backpack) then
+            'Clear the inventory slot.
+            clearInventory _cInfo.backpack(index)
+            'Set the item into the inventory slot.
+            _cInfo.backpack(index) = inv
+        endif
     endif
 end sub
 
 'Gets an item from an inventory slot.
 sub character.getInventoryItem(index as integer, inv as inventoryType)
-    'Clear the inventory item.
+    'Clear the item placeholder object.
     clearInventory inv
     
-    'Validate the index.
-    if index >= lbound(_cInfo.backpack) and index <= ubound(_cInfo.backpack) then
-        inv = _cInfo.backpack(index)
+    'Check to see if the item is in the equipment.
+    if index >= lbound(_cInfo.equipment) and index <= ubound(_cInfo.equipment) then
+        inv = _cInfo.equipment(index)
+    else
+        'Validate the index.
+        if index >= lbound(_cInfo.backpack) and index <= ubound(_cInfo.backpack) then
+           inv = _cInfo.backpack(index)
+        endif
     endif
 end sub
-
 
 'Prints out the current stats for the character.
 sub character.printStats()
@@ -681,6 +547,198 @@ sub character.tick()
         endif
     endif
 end sub
+
+'Returns a free inventory slot index, or -1 if none exist.
+function character.getFreeInventoryIndex() as integer
+    dim as integer ret = -1
+    
+    'Look for an empty inventory slot.
+    for i as integer = lbound(_cInfo.backpack) to ubound(_cInfo.backpack)
+        'Examine class ID.
+        if _cInfo.backpack(i).classID = iNone then
+            'Empty slot.
+            ret = i
+            exit for
+        endif
+    next
+        
+    return ret
+end function
+
+'Returns true if an item exists in the given inventory slot.
+function character.hasInventoryItem(index as integer) as integer
+    'First, check equipped items
+    if index >= lbound(_cInfo.equipment) and index <= ubound(_cInfo.equipment) then
+        'Check the class ID.
+        if _cInfo.equipment(index).classID = iNone then
+            return FALSE
+        else
+            return TRUE
+        endif
+    else
+        'Validate the index.
+        if index >= lbound(_cInfo.backpack) and index <= ubound(_cInfo.backpack) then
+            'Check the class ID.
+            if _cInfo.backpack(index).classID = iNone then
+                return FALSE
+            else
+                return TRUE
+            endif
+        else
+            return FALSE
+        endif
+    endif
+end function
+
+'CAN EQUIP checks to see if the character can equip a given item.
+function character.canEquip(inv as inventoryType) as integer
+    dim as integer ret = TRUE
+    
+    if inv.classID = iArmor then
+        if inv.armor.enRequired > _cInfo.en(0) then
+            ret = FALSE
+        endif
+    endif
+    
+    if inv.classID = iShield then
+        if inv.shield.enRequired > _cInfo.en(0) then
+            ret = FALSE
+        endif
+    endif
+    
+    return ret
+end function
+
+'Generates a new character.
+function character.generateCharacter() as integer
+    dim as string enteredName, prompt, sKey
+    dim as integer done = false, ret = true, tx, ty
+    dim as tWidgets.btnID btn
+    dim as tWidgets.tInputbox ib
+    dim as inventoryType inv
+    
+    'Set up user input prompt.
+    prompt = "Press R to reroll stats, <ENTER> to accept, or <ESC> to exit to menu."
+    tx = (CenterX(prompt)) * characterWidth
+    ty = (textRows - 6) * characterHeight
+    
+    /'Get the name of the character, using simple input. This loop is obsolete,
+    'as the program now uses tWidgets.
+    do
+        cls
+        'Using simple input here.
+        input "Enter your character's name (30 characters maximum): ",enteredName
+        
+        'Validate the name.
+        if len(enteredName) > 0 and len(enteredName) < 31 then
+            done = true
+        else
+            'Let the user know what went wrong.
+            cls
+            if len(enteredName) = 0 then
+                print "A name is required for your character. Press any key to continue."
+                sleep
+                clearKeys
+            endif
+            if len(enteredName) > 30 then
+                print "Your character's name is too long. There is a thirty character limit. Press any key to continue."
+                sleep
+                clearKeys
+            endif
+        endif
+        sleep 10
+    loop until done = true
+    
+    done = false
+    '/
+    
+    'Draw the background
+    screenlock
+    drawBackground bgShield()
+    screenunlock
+    
+    ib.title = "Character Name"
+    ib.prompt = "Enter your character's name:"
+    ib.maxLen = 30
+    ib.inputLen = 30
+    
+    'Get the name of the character.
+    btn = ib.inputbox(enteredName)
+    if btn = tWidgets.btnID.gbnCancel then
+        ret = false
+    endif
+    if btn = tWidgets.btnID.gbnOK then
+        ret = true
+    endif
+    
+    'Display character.
+    if ret = true then
+        'Generate the character data.
+        do
+            with _cInfo
+                .cName = enteredName
+                .fe(0) = randomRange(10,20)
+                .en(0) = randomRange(10,20)
+                .ra(0) = randomRange(10,20)
+                .ag(0) = randomRange(10,20)
+                .iq(0) = randomRange(10,20)
+                .cond = randomRange(6,18) + (.en(0) / 4)
+                .hits = .cond
+                .aura = randomRange(6,18) + (.ra(0) / 4)
+                .maxAP = .aura
+                .mAtk(0) = .fe(0) + .en(0)
+                .rAtk(0) = .fe(0) + .ag(0)
+                .sAtk(0) = .ra(0) + .iq(0)
+                .pDef(0) = .en(0) + .ag(0)
+                .sDef(0) = .ag(0) + .iq(0)
+                .currXP = 0
+                .totXP = 0
+                .currGold = 0
+                .totGold = 0
+                .location.x = 0
+                .location.y = 0
+            end with
+        
+        'Print out the current character stats.
+        printStats
+        drawShadowedText tx, ty, prompt
+        
+        'Get the user command.
+        do
+            'Get the keypress.
+            sKey = inkey
+            'Format to lowercase.
+            sKey = lcase(sKey)
+            'if escape, exit back to the menu.
+            if sKey = kEsc then
+                done = true
+                ret = false
+            endif
+            'If enter, continue with the game.
+            if sKey = kEnter then
+                done = true
+            endif
+            sleep 10
+        loop until (sKey = "r") or (sKey = kEsc) or (sKey = kEnter)
+    loop until done = true
+    endif
+    
+    'Place some cloth armor into character's equipment.
+    inv.classID = iArmor
+    generateArmor inv, 1, armorCloth
+    setItemIdentified inv, TRUE
+    addInventoryItem slotArmor, inv
+    
+    'Place a buckler into character's equipment.
+    inv.classID = iShield
+    generateShield inv, 1, shieldBuckler
+    setItemIdentified inv, TRUE
+    addInventoryItem slotOffhand, inv
+    
+    'Place a dagger into character's equipment.
+    
+    return ret
+end function
 
 'Set up shared player character variable.
 dim shared player as character    

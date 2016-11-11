@@ -859,7 +859,7 @@ function levelObject.getItemDescription(x as integer, y as integer) as string
     dim as string ret = "None"
     
     if _level.levelInv(x,y).classID <> iNone then
-        ret = getInvItemDesc(_level.levelInv(x,y))
+        ret = getInventoryItemDescription(_level.levelInv(x,y))
     endif
     
     return ret

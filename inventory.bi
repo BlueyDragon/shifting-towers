@@ -2,7 +2,7 @@
 * inventory.bi
 * Functions and declarations for the game inventory system.
 * by Stephen Gatten
-* Last update: August 13, 2014
+* Last update: November 8, 2016
 *****************************************************************************'/
 
 'Item class IDs. This enumeration defines the different item class types that
@@ -11,15 +11,26 @@ enum classIDs
     iNone
     iGold
     iSupply
+    iArmor
+    iShield
     iPotion
     iWand
     iWeapon
-    iArmor
     iLight
     iAmmo
-    iShield
     iScroll
     iSpellbook
+end enum
+
+'Equipment slots in character inventory.
+enum equipSlots
+    slotNone
+    slotMain
+    slotOffhand
+    slotArmor
+    slotNeck
+    slotRingR
+    slotRingL
 end enum
 
 'Effects IDs.
@@ -70,6 +81,46 @@ type supplyType
     use as itemUse          'How the item is used.
 end type
 
+'Armor item IDs and type definition.
+enum armorIDs
+    armorNone
+    armorCloth          'Cloth Tunic (1% resistance)
+    armorLeather        'Leather Tunic (5% resistance)
+end enum
+
+type armorType
+    id as armorIDs
+    idDR as integer
+    ided as integer
+    effect as integer
+    sDesc as string * 30
+    noise as integer
+    use as itemUse
+    resist as single
+    enRequired as integer
+    slot(1 to 2) as equipSlots
+end type
+
+'Shield item IDs and type definition.
+enum shieldIDs
+    shieldNone
+    shieldBuckler
+    shieldLeather
+end enum
+
+type shieldType
+    id as shieldIDs
+    idDR as integer
+    ided as integer
+    effect as integer
+    sDesc as string * 30
+    noise as integer
+    use as itemUse
+    resist as single
+    enRequired as integer
+    slot(1 to 2) as equipSlots
+end type
+
 'Inventory type. This will be a composite data type to hold different data items
 'utilizing type defs and a union. A union is a segment of memory that can hold
 'different values, depending on what is put into the union.
@@ -81,7 +132,9 @@ type inventoryType
     
     Union                       'Union of item types.
         gold as goldType        'Gold coins.
-        supply as supplyType    'Supplies.
+        supply as supplyType    'Supplies, tools, consumables.
+        armor as armorType      'Armor.
+        shield as shieldType    'Shields.
     end union
 end type
 
@@ -91,22 +144,47 @@ Sub clearInventory(inv As inventoryType)
    
     'If the classID is None, then no further action is needed.
     if inv.classID <> iNone then
-        'Clear the GOLD type.
-        if inv.classID = iGold then
+        select case inv.classID
+        case iGold
             inv.gold.id = goldNone
             inv.gold.amount = 0
-        endif
         
-        'Clear the SUPPLY type.
-        if inv.classID = iSupply then
+        case iSupply
             inv.supply.id = supplyNone
             inv.supply.idDR = 0
             inv.supply.ided = false
             inv.supply.effect = effectNone
             inv.supply.sDesc = ""
             inv.supply.noise = 0
-            endif
-            
+        
+        case iArmor
+            inv.armor.id = armorNone
+            inv.armor.idDR = 0
+            inv.armor.ided = FALSE
+            inv.armor.effect = 0
+            inv.armor.sDesc = ""
+            inv.armor.noise = 0
+            inv.armor.use = useNone
+            inv.armor.resist = 0
+            inv.armor.enRequired = 0
+            inv.armor.slot(1) = slotNone
+            inv.armor.slot(2) = slotNone
+        
+        case iShield
+            inv.shield.id = shieldNone
+            inv.shield.idDR = 0
+            inv.shield.ided = FALSE
+            inv.shield.effect = 0
+            inv.shield.sDesc = ""
+            inv.shield.noise = 0
+            inv.shield.use = useNone
+            inv.shield.resist = 0
+            inv.shield.enRequired = 0
+            inv.shield.slot(1) = slotNone
+            inv.shield.slot(2) = slotNone
+    
+        end select
+                        
         'Clear the common variables of the inventory item, such as the name,
         'description, class ID, glyph, and color.
         inv.desc = ""
@@ -222,6 +300,94 @@ sub generateSupply(inv as inventoryType, currentLevel as integer)
     end select
 end sub
 
+'GENERATE ARMOR creates a new armor item.
+sub generateArmor(inv as inventoryType, currentLevel as integer, id as armorIDs = armorNone)
+    dim item as armorIDs
+    dim as integer isMagic = itemIsMagic(currentLevel)
+    
+    'Common items
+    if id = armorNone then
+        item = randomRange(armorCloth, armorLeather)
+        inv.armor.id = item
+    else
+        item = id
+        inv.armor.id = id
+    endif
+    
+    'Set the armor type and amount.
+    select case item
+    case armorCloth
+        inv.desc = "Cloth Tunic"
+        inv.armor.noise = 1
+        inv.armor.resist = .01
+        inv.armor.enRequired = 10
+    case armorLeather
+        inv.desc = "Leather Tunic"
+        inv.armor.noise = 5
+        inv.armor.resist = .05
+        inv.armor.enRequired = 25
+    end select
+    
+    inv.glyph = Chr(234)
+    inv.glyphColor = cEmeraldGreen
+    inv.armor.use = useEquip
+    inv.armor.ided = FALSE
+    inv.armor.slot(1) = slotArmor
+    inv.armor.sDesc = inv.desc
+    
+    'Magic items
+    if isMagic = TRUE then
+        inv.armor.idDR = randomRange(currentLevel, currentLevel * 2)
+        inv.armor.effect = 0
+        inv.armor.sDesc = "Magic " & inv.desc
+    endif
+    
+end sub
+
+'GENERATE SHIELD creates a new shield item.
+sub generateShield(inv as inventoryType, currentLevel as integer, id as shieldIDs = shieldNone)
+    dim item as shieldIDs
+    dim as integer isMagic = itemIsMagic(currentLevel)
+    
+    'Common items
+    if id = shieldNone then
+        item = randomRange(shieldBuckler, shieldLeather)
+        inv.shield.id = item
+    else
+        item = id
+        inv.shield.id = id
+    endif
+    
+    'Set the armor type and amount.
+    select case item
+    case shieldBuckler
+        inv.desc = "Buckler"
+        inv.shield.noise = 1
+        inv.shield.resist = .05
+        inv.shield.enRequired = 10
+    case armorLeather
+        inv.desc = "Leather Shield"
+        inv.shield.noise = 5
+        inv.shield.resist = .10
+        inv.shield.enRequired = 25
+    end select
+    
+    inv.glyph = Chr(234)
+    inv.glyphColor = cEmeraldGreen
+    inv.shield.use = useEquip
+    inv.shield.ided = FALSE
+    inv.shield.slot(1) = slotOffhand
+    inv.shield.sDesc = inv.desc
+    
+    'Magic items
+    if isMagic = TRUE then
+        inv.shield.idDR = randomRange(currentLevel, currentLevel * 2)
+        inv.shield.effect = 0
+        inv.shield.sDesc = "Magic " & inv.desc
+    endif
+    
+end sub
+
 'Generates a new item and places it into the inventory slot.
 sub generateItem(inv as inventoryType, currentLevel as integer)
     dim itemClass as classIDs = randomRange(iGold, iSupply)
@@ -236,80 +402,56 @@ sub generateItem(inv as inventoryType, currentLevel as integer)
     
     'Generate item based on class ID.
     select case itemClass
-    case iGold
-        generateGold inv
-    case iSupply
-        generateSupply inv, currentLevel
+    case iGold: generateGold inv
+    case iSupply: generateSupply inv, currentLevel
+    case iArmor: generateArmor inv, currentLevel
+    case iShield: generateShield inv, currentLevel
     end select
 end sub
-
-'Returns the description for the item at the x,y coordinate.
-function getInvItemDesc(inv as inventoryType) as string
-    dim as string ret = "None"
-    
-    'If class ID is none then nothing to do.
-    if inv.classID <> iNone then
-        'Get the gold description.
-        if inv.classID = iGold then
-            ret = inv.desc
-        endif
-    endif
-    
-    'Get the supply description.
-    if inv.classID = iSupply then
-        'If not evaluated, then return main description.
-        if inv.supply.ided = false then
-            ret = inv.desc
-        else
-            'If evaluated, then return the true description.
-            ret = inv.supply.sDesc
-        endif
-    endif
-    
-    return ret
-end function
 
 'Returns true if item has been evaluated.
 function isIdentified(inv as inventoryType) as integer
     dim as integer ret
     
-    'If nothing then mark as identified.
-    if inv.classID = iNone then
-        ret = true
-    else
-        'Select the item type.
-        select case inv.classID
-        case iGold
-            ret = true
-        case iSupply
-            ret = inv.supply.ided
-        end select
-    endif
+    select case inv.classID
+    case iNone: ret = TRUE              'Null item
+    case iGold: ret = TRUE              'Gold always identified
+    case iSupply: ret = inv.supply.ided
+    case iArmor: ret = inv.armor.ided
+    case iShield: ret = inv.shield.ided
+    end select
     
     return ret
 end function
 
-'Returns the item description for the item at the given X,Y coordinate.
+'GET INVENTORY ITEM DESCRIPTION returns the item description for the given item.
 function getInventoryItemDescription(inv as inventoryType) as string
     dim as string ret = "None"
     
     'If classID is none, then nothing to do.
     if inv.classID <> iNone then
-        'Get the gold description.
-        if inv.classID = iGold then
+        select case inv.classID
+        case iGold
             ret = inv.desc
-        endif
-    endif
-    
-    'Get the supply description.
-    if inv.classID = iSupply then
-        'If not identified, then return main description.
-        if inv.supply.ided = false then
-            ret = inv.desc
-        else
-            'Return secret description
-            ret = inv.supply.sDesc
-        endif
+        case iSupply
+            if inv.supply.ided = FALSE then
+                ret = inv.desc
+            else
+                ret = inv.supply.sDesc
+            endif
+        case iArmor
+            if inv.armor.ided = FALSE then
+                ret = inv.desc
+            else
+                ret = inv.armor.sDesc
+            endif
+        case iShield
+            if inv.shield.ided = FALSE then
+                ret = inv.desc
+            else
+                ret = inv.shield.sDesc
+            endif
+        end select
     endif
     
     return ret
@@ -319,16 +461,53 @@ end function
 function getIdentifyDifficulty(inv as inventoryType) as integer
     dim as integer ret
     
-    'If nothing then the difficulty is zero.
-    if inv.classID = iNone then
-        ret = 0
-    else
-        'Select the item.
+    select case inv.classID
+    case iNone: ret = 0                     'Null item: difficulty zero
+    case iGold: ret = 0                     'Gold always identified: zero
+    case iSupply: ret = inv.supply.idDR
+    case iArmor: ret = inv.armor.idDR
+    case iShield: ret = inv.shield.idDR
+    end select
+    
+    return ret
+end function
+
+'GET INVENTORY E SLOT returns an integer describing the slot where an equippable
+'item can be placed, such as weapon hand, armor, neck, etc.
+function getInventoryESlot(inv as inventoryType, slotNumber as integer) as integer
+    dim as integer ret = slotNone
+    
+    if inv.classID = iArmor then
+        if slotNumber >= lbound(inv.armor.slot) and slotNumber <= ubound(inv.armor.slot) then
+            ret = inv.armor.slot(slotNumber)
+        endif
+    elseif inv.classID = iShield then
+        if slotNumber >= lbound(inv.shield.slot) and slotNumber <= ubound(inv.shield.slot) then
+            ret = inv.shield.slot(slotNumber)
+        endif
+    endif
+    
+    return ret
+end function
+    
+function matchUse(inv as inventoryType, whatUse as itemUse) as integer
+    dim as integer ret = FALSE
+    
+    'If nothing, then no use.
+    if inv.classID <> iNone then
         select case inv.classID
-        case iGold
-            ret = 0
         case iSupply
-            ret = inv.supply.idDR
+            if inv.supply.use = whatUse then
+                ret = TRUE
+            endif
+        case iArmor
+            if inv.armor.use = whatUse then
+                ret = TRUE
+            endif
+        case iShield
+            if inv.shield.use = whatUse then
+                ret = TRUE
+            endif
         end select
     endif
     
@@ -343,6 +522,10 @@ sub setItemIdentified(inv as inventoryType, state as integer)
         select case inv.classID
         case iSupply
             inv.supply.ided = state
+        case iArmor
+            inv.armor.ided = state
+        case iShield
+            inv.shield.ided = state
         end select
     endif
 end sub
@@ -359,40 +542,63 @@ sub getFullDescription(lines() as string, inv as inventoryType)
         'Select the item.
         select case inv.classID
         case iSupply
-            index += 1
-            redim preserve lines(0 to index) as string
-            lines(index) = inv.desc
             select case inv.supply.id
             case supplyGreenHerb
-                index += 1
-                redim preserve lines(0 to index) as string
-                lines(index) = "A small, green plant with pointed leaves. Common ingredient in Aluran medicine. Heals critical wounds."
-                index += 1
-                redim preserve lines(0 to index) as string
+                index += 1: redim preserve lines(0 to index) as string
+                lines(index) = "A small mint plant common in Aluran medicine."
+                index += 1: redim preserve lines(0 to index) as string
+                lines(index) = "* Heals critical wounds"
+                index += 1: redim preserve lines(0 to index) as string
                 lines(index) = "* Magic: Max Healing"
             case supplyMeat
-                index += 1
-                redim preserve lines(0 to index) as string
-                lines(index) = "A chop of red meat. Heals moderate wounds."
-                index += 1
-                redim preserve lines(0 to index) as string
+                index += 1: redim preserve lines(0 to index) as string
+                lines(index) = "A chop of red meat."
+                index += 1: redim preserve lines(0 to index) as string
+                lines(index) = "* Heals moderate wounds"
+                index += 1: redim preserve lines(0 to index) as string
                 lines(index) = "* Magic: Ferrum Bestia"
             case supplyBread
-                index += 1
-                redim preserve lines(0 to index) as string
-                lines(index) = "A loaf of flaky Aluran bread. Heals slight wounds."
-                index += 1
-                redim preserve lines(0 to index) as string
+                index += 1: redim preserve lines(0 to index) as string
+                lines(index) = "A loaf of flaky Aluran bread."
+                index += 1: redim preserve lines(0 to index) as string
+                lines(index) = "* Heals slight wounds"
+                index += 1: redim preserve lines(0 to index) as string
                 lines(index) = "* Magic: Cure Poison"
             end select
-            index += 1
-            redim preserve lines(0 to index) as string
-            if isIdentified(inv) = TRUE then
-                lines(index) = "* Item is identified."
-            else
-                lines(index) = "* Item is not identified."
-            end if
+        case iArmor
+            select case inv.armor.id
+            case armorCloth
+                index += 1: redim preserve lines(0 to index) as string
+                lines(index) = "Light cloth garment."
+                index += 1: redim preserve lines(0 to index) as string
+                lines(index) = "* 1% damage reduction"
+            case armorLeather
+                index += 1: redim preserve lines(0 to index) as string
+                lines(index) = "Leather jerkin."
+                index += 1: redim preserve lines(0 to index) as string
+                lines(index) = "* 5% damage reduction"
+            end select
+        case iShield
+            select case inv.shield.id
+            case shieldBuckler
+                index += 1: redim preserve lines(0 to index) as string
+                lines(index) = "Small shield."
+                index += 1: redim preserve lines(0 to index) as string
+                lines(index) = "* 5% damage reduction"
+            case shieldLeather
+                index += 1: redim preserve lines(0 to index) as string
+                lines(index) = "Leather shield."
+                index += 1: redim preserve lines(0 to index) as string
+                lines(index) = "* 10% damage reduction"
+            end select
         end select
+        index += 1: redim preserve lines(0 to index) as string
+        'lines(index) = "index equals " & str(index)
+        if isIdentified(inv) = TRUE then
+            lines(index) = "* Item is identified."
+        else
+            lines(index) = "* Item is not identified."
+        end if
     end if
 
 end sub

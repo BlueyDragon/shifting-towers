@@ -28,7 +28,7 @@ Sub DisplayTitle
     Dim As Integer textX, textY
         
     'Set up the copyright notice.
-    copyrightText = "(c) 2014 Studio (D)raconis"
+    copyrightText = "(c) 2016 Studio (D)raconis"
     textX = centerX(copyrightText)
     textY = textRows - 2
     
@@ -92,6 +92,16 @@ sub drawMainScreen()
     dim as terrainIDs terr
     
     screenlock
+    
+    healthPercent = int((player.cond / player.hits) * 100)
+    if healthPercent > 74 then
+        drawSolidBackground(cGreen)
+    elseif (healthPercent > 24) andalso (healthPercent < 75) then 
+        drawSolidBackground(cYellow)
+    else
+        drawSolidBackground(cRed)
+    endif
+    
     level.drawMap
     
     'Draw the message area.
@@ -106,8 +116,8 @@ sub drawMainScreen()
     next
     
     'drawShadowedText characterWidth, 0, "Dungeon Level: " & level.levelID
-    titleX = centerX(title)
-    drawGlowText (titleX * characterWidth), 0, title, cYellowBright
+    'titleX = centerX(title)
+    'drawGlowText (titleX * characterWidth), 0, title, cYellowBright
     
     'Draw the character name.
     row = 3
@@ -198,21 +208,12 @@ sub drawMainScreen()
         endif
     endif
     screenunlock
-    
-    'healthPercent = int((player.cond / player.hits) * 100)
-    'if healthPercent > 74 then
-    '    drawSolidBackground(cGreen)
-    'elseif (healthPercent > 24) andalso (healthPercent < 75) then 
-    '    drawSolidBackground(cYellow)
-    'else
-    '    drawSolidBackground(cRed)
-    'endif
 end sub
 
 'Draws the player inventory.
 sub drawInventoryScreen()
-    dim as integer col, row, iItem, ret, sRow, ssRow, count, i
-    dim as string text, text2, desc
+    dim as integer col, row, iItem, ret, savedRow, sRow, ssRow, count, i
+    dim as string text, text2, desc, itemName
     dim as inventoryType inv
     dim as uInteger clr
     
@@ -231,36 +232,53 @@ sub drawInventoryScreen()
     'Add the current held equipment.
     col = 2
     row += 3
-    text = "1 Primary: "
-    placeGlyphShadow text, col, row, cWhite
+    savedRow = row 'Save the row location.
     
-    col = textColumns / 2
-    text = "4 Neck: "
-    placeGlyphShadow text, col, row, cWhite
-    
-    col = 2
-    row += 2
-    text = "2 Secondary: "
-    placeGlyphShadow text, col, row, cWhite
-    
-    col = textColumns / 2
-    text = "5 Ring Right: "
-    placeGlyphShadow text, col, row, cWhite
-    
-    col = 2
-    row += 2
-    text = "3 Armor: "
-    placeGlyphShadow text, col, row, cWhite
-    
-    col = textColumns / 2
-    text = "6 Ring Left: "
-    placeGlyphShadow text, col, row, cWhite
+    'Iterate through all equipment slots printing item names.
+    for i = slotMain to slotRingL
+        select case i
+        case slotMain
+            text = i & " Main Hand: "
+        case slotOffhand
+            text = i & " Offhand: "
+        case slotArmor
+            text = i & " Armor: "
+        case slotNeck
+            text = i & " Neck: "
+        case slotRingR
+            text = i & " Ring (Right): "
+        case slotRingL
+            text = i & " Ring (Left): "
+        end select
+        
+        itemName = "" 
+        iItem = player.hasInventoryItem(i)
+        if iItem = TRUE then
+            player.getInventoryItem i, inv
+            ret = isIdentified(inv)
+            itemName = getInventoryItemDescription(inv)
+            clr = inv.glyphColor
+            text &= itemName
+            if ret = FALSE then
+                text &= " (*)"
+            endif
+        else
+            clr = cWhite
+        endif
+        
+        placeGlyphShadow text, col, row, clr
+        row += 2
+        if i = slotArmor then
+            col = textColumns / 2
+            row = savedRow
+        endif
+    next
     
     'Draw the divider line.
-    row += 2
+    'row += 2
     col = 1
     text = string(80, chr(205))
-    mid(text, 2) = " Equipment  (*) = Unidentified "
+    mid(text, 2) = " Backpack  (*) = Unidentified "
     text2 = " Gold: " & player.currGold & " "
     mid(text, 80 - len(text2)) = text2
     placeGlyphShadow text, col, row, cYellowBright
@@ -349,7 +367,7 @@ sub drawInventoryScreen()
     
     'Draw the command list
     row += 2
-    text = "(D)rop - (I)dentify - (L)ook"
+    text = "(D)rop - (E)quip - (I)dentify - (L)ook - (U)se   (ESC) Exit"
     col = centerX(text)
     placeGlyphShadow text, col, row, cWhite
     screenunlock
@@ -402,7 +420,7 @@ function processIdentify() as integer
     next
     
     if len(mask) = 0 then
-        showMsg "Identify", "There are no unidentified items in the inventory.", tWidgets.MsgBoxType.gmbOK
+        showMsg "Identify", "There are no unidentified items in your pack.", tWidgets.MsgBoxType.gmbOK
     else
         'Draws an input box on the screen.
         ib.Title = "Identify"
@@ -458,7 +476,7 @@ end function
 
 'Processes the LOOK inventory command.
 function processLook() as integer
-    dim as string res, mask, desc
+    dim as string res, mask, desc, choice
     dim as integer i, iItem, ret = false
     dim as inventoryType inv
     dim as tWidgets.btnID btn
@@ -476,11 +494,20 @@ function processLook() as integer
         endif
     next
     
+    'Add any held items.
+    for i = slotMain to slotRingL
+        iItem = player.hasInventoryItem(i)
+        if iItem = TRUE then
+            'Build the mask.
+            mask &= str(i)
+        endif
+    next
+    
     if len(mask) = 0 then
-        showMsg "Look", "You have nothing in your pack to look at.", tWidgets.MsgBoxType.gmbOK
+        showMsg "Look", "You have no items to look at.", tWidgets.MsgBoxType.gmbOK
     else
         'Draws an input box on the screen.
-        ib.Title = "Look at Items"
+        ib.Title = "Look"
         ib.Prompt = "Select item(s) to look at (" & mask & ")"
         ib.Row = 39
         ib.EditMask = mask
@@ -492,9 +519,16 @@ function processLook() as integer
         if(btn <> tWidgets.btnID.gbnCancel) and (len(res) > 0) then
             for i = 1 to len(res)
                 'Get index into character inventory.
-                iItem = asc(res,i)
+                choice = mid(res, i, 1)
                 
-                'Get the inventory item.
+                'Player chooses 1-6, equipment item
+                if instr("123456", choice) > 0 then
+                    iItem = val(choice) 'Get index into equipment.
+                'Player chooses A-Z, backpack item
+                else
+                    iItem = asc(choice) 'Get index into backpack.
+                endif
+                    
                 player.getInventoryItem iItem, inv
                 getFullDescription lines(), inv
                 
@@ -674,6 +708,131 @@ function processUse() as integer
     
     return ret
 end function
+
+'PROCESS EQUIP removes an item from the pack and places it into the character's
+'equipment if there is an available space, or removes an item from the character's
+'equipment and places it into the pack.
+function processEquip() as integer
+    dim as string res, mask, message, choice
+    dim as integer i, iRet, iItem, index, ret = FALSE
+    dim as inventoryType inv
+    dim as tWidgets.btnID btn
+    dim as tWidgets.tInputbox ib
+    dim as mapVector targetVector
+    dim slot as integer
+    
+    'Make sure there is something to process in the inventory.
+    for i = player.lowInv to player.highInv
+        iItem = player.hasInventoryItem(i)
+        if iItem = TRUE then
+            'Get the inventory item.
+            player.getInventoryItem i, inv
+            'Make sure the item is equippable.
+            iRet = matchUse(inv, useEquip)
+            if iRet = TRUE then
+                'Build the mask.
+                mask &= chr(i)
+            endif
+        endif
+    next
+    
+    'Add any held items.
+    for i = slotMain to slotRingL
+        iItem = player.hasInventoryItem(i)
+        if iItem = TRUE then
+            'Build the mask.
+            mask &= str(i)
+        endif
+    next
+    
+    if len(mask) = 0 then
+        showMsg "Equip", "You have nothing to wield or remove.", tWidgets.msgBoxType.gmbOK
+    
+    else
+        'Draws an input box on screen.
+        ib.Title = "Equip"
+        ib.Prompt = "Select item(s) to wield or remove (" & mask & ")"
+        ib.Row = 39
+        ib.EditMask = mask
+        ib.MaxLen = Len(mask)
+        ib.InputLen = Len(mask)
+        btn = ib.Inputbox(res)
+        
+        if (btn <> tWidgets.btnID.gbnCancel) and (len(res) > 0) then
+            'Process each item in the list.
+            for i = 1 to len(res)
+                choice = mid(res, i, 1)
+                
+                'Player chooses 1-6, an equipment item
+                if instr("123456", choice) > 0 then
+                    iItem = val(choice) 'Get index into equipment.
+                    player.getInventoryItem iItem, inv
+                    message = getInventoryItemDescription(inv)
+                    iRet = player.getFreeInventoryIndex
+                    
+                    'If the player has a free spot for the item
+                    if iRet > -1 then
+                        player.addInventoryItem iRet, inv
+                        clearInventory inv
+                        player.addInventoryItem iItem, inv
+                        ret = TRUE
+                        message &= " was unequipped."
+                        
+                    'The player does NOT have a free spot for the item
+                    else
+                        message = "You have no free backpack slots for this item."
+                        showMsg "Equip", message, tWidgets.MsgBoxType.gmbOK
+                        exit for 'Give up immediately, otherwise it will just keep erroring
+                    endif
+                    showMsg "Equip", message, tWidgets.MsgBoxType.gmbOK
+                
+                'Player chooses A-Z, an inventory item
+                else
+                    iItem = asc(choice) 'Get index into backpack.
+                    player.getInventoryItem iItem, inv
+                    message = getInventoryItemDescription(inv)
+                    iRet = FALSE
+                    index = 0
+                    slot = getInventoryESlot(inv,1)
+                    if slot <> slotNone then
+                        'Check character to see if slot is open.
+                        if player.hasInventoryItem(slot) = FALSE then
+                            index = slot
+                            iRet = TRUE
+                        endif
+                    else
+                        slot = getInventoryESlot(inv,2)
+                        if slot <> slotNone then
+                            if player.hasInventoryItem(slot) = FALSE then
+                                index = slot
+                                iRet = TRUE
+                            endif
+                        endif
+                    endif
+                    
+                    if iRet = TRUE then
+                        if player.canEquip(inv) = TRUE then
+                            player.addInventoryItem(index,inv)
+                            clearInventory inv
+                            player.addInventoryItem iItem, inv
+                            ret = TRUE
+                            message &= " was equipped."
+                        else
+                            message = "You do not have enough Endurance to equip this item."
+                        endif
+                        showMsg "Equip", message, tWidgets.MsgBoxType.gmbOK
+                    else
+                        message = "You do not have any empty slots to equip this item."
+                        showMsg "Equip", message, tWidgets.MsgBoxType.gmbOK
+                        exit for
+                    endif
+                endif
+            next
+        endif
+    endif
+        
+    return ret
+end function
     
 'Manages the character's inventory.
 sub manageInventory()
@@ -723,6 +882,15 @@ sub manageInventory()
                     drawInventoryScreen
                 endif
             endif
+            
+            '(E)quip
+            if kChar = "E" then
+                ret = processEquip()
+                'Screen changed.
+                if ret = TRUE then
+                    drawInventoryScreen
+                endif
+            endif
         endif
         sleep 1
     loop until kChar = kEsc
@@ -732,7 +900,7 @@ end sub
 'Using 640x480 32 bit screen with 80x60 text.
 ScreenRes 640, 480, 32
 Width characterWidth, characterHeight
-WindowTitle "Forcastia Tales"
+WindowTitle "Forcastia Tales: Mersenne Labyrinth"
 randomize timer 'Seed the random number generator.
 tWidgets.initWidgets 'Initialize the text widgets.
 

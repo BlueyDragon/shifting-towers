@@ -29,10 +29,10 @@
 #define imax(a,b) IIf( a > b, a, b )
 
 'Program Version
-const version = 0.01
+const version = 0.15
 
 'In-game Title
-const title = "F O R C A S T I A  T A L E S:  T H E  S H I F T I N G  T O W E R S"
+const title = "F O R C A S T I A  T A L E S:  M E R S E N N E  L A B Y R I N T H"
 
 'Colors
 const cBlack = rgb(0,0,0)
@@ -56,6 +56,8 @@ Const cRed = RGB(255,0,0)
 Const cPink = RGB(255,0,255)
 Const cPurple = RGB(150,0,150)
 const cSalmon = rgb(250,128,114)
+const cNavy = rgb(0,0,128)
+const cEmeraldGreen = rgb(0,201,087)
 
 'Color Bounds, used for random leather color generation
 const lowerLimitBlue = 30
