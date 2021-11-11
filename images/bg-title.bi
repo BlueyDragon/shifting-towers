@@ -3,10 +3,10 @@
 * Background color array used to construct a picture of the Temple of Darkmoon
 * from Eye of the Beholder 2: Legend of Darkmoon.
 * by Stephen Gatten, using a utility written by Richard D. Clark
-* Last update: August 1, 2014
+* Last update: November 11, 2021
 *****************************************************************************'/
 
-'Useage: (uinteger) pixel = title(x + y * titlew)
+'Usage: (uinteger) pixel = title(x + y * titlew)
 dim shared bgTitle(4800) As UInteger = { _
 &hFF0F330F,&hFF0F330F,&hFF0B230B,&hFF0F330F,&hFF0F330F,&hFF0B230B,&hFF235323,&hFF0B230B, _
 &hFF0B230B,&hFF0F330F,&hFF0F330F,&hFF000F00,&hFF0F330F,&hFF0F330F,&hFF0F330F,&hFF000F00, _
