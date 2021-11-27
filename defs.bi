@@ -11,9 +11,13 @@
 #define bgWidth 80
 #define bgHeight 60
 
+'MACROS, for inline calculations
+#define centerX(textToCenter) ((textColumns / 2) - (Len(textToCenter) / 2))
+
 'CONSTs, for pre-calculated values
 'COLORS, prefix c
 const cYellow = rgb(255, 255, 0)
 
 'Ascii GLYPHS, prefix g
 const gBlock = chr(219)
+

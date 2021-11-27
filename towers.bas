@@ -1,5 +1,6 @@
 #include "images/bg-title.bi"
 #include "defs.bi"
+#include "utils.bi"
 
 'Displays the game title screen.
 Sub DisplayTitle
@@ -8,7 +9,7 @@ Sub DisplayTitle
 
     'Set up the copyright notice.
     text = "Studio Draconis (c) 2021"
-    tx = (textColumns / 2) - (Len(text) / 2)
+    tx = centerX(text)
     ty = textRows - 2
 
     'Lock the screen while we update it.
@@ -31,9 +32,7 @@ Sub DisplayTitle
 
     screenunlock
     sleep
-
-    'Clear the key buffer.
-    do:sleep 1:loop while inkey <> ""
+    ClearKeys
 end Sub
 
 'Using 640 x 480 32 bit screen with 80x60 text.
