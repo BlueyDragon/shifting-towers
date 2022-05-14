@@ -1,6 +1,7 @@
 #include "images/bg-title.bi"
 #include "defs.bi"
 #include "utils.bi"
+#include "mainmenu.bi"
 
 'Displays the game title screen.
 Sub DisplayTitle
@@ -14,18 +15,9 @@ Sub DisplayTitle
 
     'Lock the screen while we update it.
     ScreenLock
-    cls
 
-    'Iterate through the array, drawing the block character in the array color.
-    for x as integer = 0 to bgWidth - 1
-        for y as integer = 0 to bgHeight - 1
-            'Get the color from the array using this formula
-            dim clr as uinteger = bgTitle(x + y * bgWidth)
-
-            'Use draw string, it's faster and doesn't require locate statements
-            draw string (x * charWidth, y * charHeight), gBlock, clr
-        next
-    next
+    'Draw the background image.
+    DrawBackground bgTitle()
 
     'Draw the copyright notice.
     draw string (tx * charWidth, ty * charHeight), text, cYellow
@@ -41,4 +33,24 @@ width charWidth, charHeight
 windowtitle "Feral Tales: The Shifting Towers"
 
 'Draw the title screen.
-DisplayTitle
+'DisplayTitle
+
+'Get the menu selection
+dim mm as mmenu.mmenuret
+
+'Loop until the user selects something useful
+do
+    'Draw the main menu.
+    mm = mmenu.mainMenu()
+
+    'Process the menu selection.
+    if mm = mmenu.mNew then
+        'Generate the character.
+    elseif mm = mmenu.mLoad then
+        'Load the saved game.
+    elseif mm = mmenu.mHelp then
+        'Print the instructions.
+    endif
+loop until mm <> mmenu.mHelp
+
+
