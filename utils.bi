@@ -16,3 +16,14 @@ sub DrawBackground(colorMap() as uinteger)
         next
     next
 end sub
+
+'Print a string with a drop shadow.
+sub DrawStringShadow(x as integer, y as integer, text as string, textColor as uinteger = cWhite)
+    draw string (x + 1, y + 1), text, cBlack
+    draw string (x, y), text, textColor
+end sub
+
+'Returns a random number within range
+function RandomRange(lowerBound as integer, upperBound as integer) as integer
+    return int((upperBound - lowerBound + 1) * rnd + lowerBound)
+end function

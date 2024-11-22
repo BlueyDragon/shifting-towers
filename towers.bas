@@ -2,6 +2,7 @@
 #include "defs.bi"
 #include "utils.bi"
 #include "mainmenu.bi"
+#include "character.bi"
 
 'Displays the game title screen.
 Sub DisplayTitle
@@ -46,6 +47,13 @@ do
     'Process the menu selection.
     if mm = mmenu.mNew then
         'Generate the character.
+        var ret = player.GenerateCharacter
+
+        'Do not exit menu when user presses ESC
+        if ret = FALSE then
+            'Set this so that we loop.
+            mm = mmenu.mHelp
+        endif
     elseif mm = mmenu.mLoad then
         'Load the saved game.
     elseif mm = mmenu.mHelp then
