@@ -49,7 +49,10 @@ sub Character.PrintStats()
     ty = row * charHeight
     tx = 70
     toWrite = "FEROCITY: " & _cInfo.fe(0)
-    DrawStringShadow tx, ty, toWrite
+    DrawStringShadow tx, (row * charHeight), toWrite
+    row += 2
+    toWrite = "ENDURANCE: " & _cInfo.en(0)
+    DrawStringShadow tx, (row * charHeight), toWrite
 
     screenunlock
 end sub
@@ -68,7 +71,7 @@ function Character.GenerateCharacter() as integer
     do
         cls
         'Using simple input here for now.
-        input "Enter your character's name (40 chars max):", enteredName
+        input "Enter your character's name (40 chars max): ", enteredName
 
         'Validate the name here.
         if len(enteredName) > 0 and len(enteredName) < 40 then

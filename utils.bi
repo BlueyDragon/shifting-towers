@@ -27,3 +27,50 @@ end sub
 function RandomRange(lowerBound as integer, upperBound as integer) as integer
     return int((upperBound - lowerBound + 1) * rnd + lowerBound)
 end function
+
+'WORD WRAP splits the text of inputString at targetLength, and returns the clipped string.
+function WordWrap(inputString as string, targetLength as integer) as string
+    dim as integer i = targetLength, stringLength 
+    dim as integer backFlag = FALSE
+    dim as string stringReturn, targetCharacter
+
+    'Make sure we have something to work with...
+    stringLength = len(inputString)
+    if stringLength <= targetLength then
+        stringReturn = inputString
+        inputString = ""
+    else
+        'Find the breakpoint in the string, backtracking to find
+        'a space to break the line at if not at a space.
+        do
+            'Break is at space, so done.
+            targetCharacter = mid(inputString, i, 1)
+            if targetCharacter = chr(32) then
+                exit do
+            endif
+
+            'If not already backtracking, start.
+            if backFlag = FALSE then
+                if i + 1 <= stringLength then
+                    i += 1
+                endif
+                backFlag = TRUE
+            else
+                i -= 1
+            endif
+        loop until i = 0 or targetCharacter = chr(32) 'Backtrack to space.
+
+        'Make sure we still have something to work with...
+        if i > 0 then
+            'Return clipped string.
+            stringReturn = mid(inputString, 1, i)
+
+            'Modify the input string: input, minus the clipped part.
+            inputString = mid(inputString, i + 1)
+        else
+            stringReturn = ""
+        endif
+    endif
+
+    return stringReturn
+end function

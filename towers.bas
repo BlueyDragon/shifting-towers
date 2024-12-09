@@ -3,6 +3,7 @@
 #include "utils.bi"
 #include "mainmenu.bi"
 #include "character.bi"
+#include "intro.bi"
 
 'Displays the game title screen.
 Sub DisplayTitle
@@ -53,6 +54,9 @@ do
         if ret = FALSE then
             'Set this so that we loop.
             mm = mmenu.mHelp
+        else
+            'Show the intro.
+            intro.DoIntro
         endif
     elseif mm = mmenu.mLoad then
         'Load the saved game.
